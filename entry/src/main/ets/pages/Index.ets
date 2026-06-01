@@ -1,7 +1,9 @@
 import { common } from '@kit.AbilityKit';
+import { SectionHeader } from '../components/SectionHeader';
 import { DEFAULT_LANGUAGE, normalizeLanguage, translate } from '../core/I18n';
 import { AppLanguage, AppSettings, ConnectionStatus, ProxyNode, ProxyProfile, RuntimeStats, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
 import { normalizeOutboundInput } from '../core/XrayConfig';
+import { RuntimeStatusPanel } from '../features/runtime/RuntimePanel';
 import { ConnectionController, ConnectionSnapshot } from '../services/ConnectionController';
 import { DelayTester, DelayTestResult } from '../services/DelayTester';
 import { DiagnosticEvent, DiagnosticLog } from '../services/DiagnosticLog';
@@ -9,6 +11,8 @@ import { SubscriptionManager, SubscriptionUpdateResult } from '../services/Subsc
 import { ProfileStore } from '../storage/ProfileStore';
 import { DEFAULT_APP_SETTINGS, SettingsStore } from '../storage/SettingsStore';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
+import { AppTopBar } from '../shell/AppTopBar';
+import { AppScreen, SCREEN_ENTRIES, ScreenEntry } from '../shell/AppScreen';
 import {
   connectionStatusBackground,
   connectionStatusColor,
@@ -32,38 +36,6 @@ const EMPTY_STATS: RuntimeStats = {
   tun2SocksRunning: false,
   lastMessage: translate(DEFAULT_LANGUAGE, 'runtime.nativeBridgeNotQueried')
 };
-
-enum AppScreen {
-  SERVERS = 'servers',
-  IMPORT = 'import',
-  SUBSCRIPTIONS = 'subscriptions',
-  ROUTING = 'routing',
-  SETTINGS = 'settings',
-  PER_APP = 'perApp',
-  ASSETS = 'assets',
-  LOGS = 'logs',
-  SCANNER = 'scanner',
-  ABOUT = 'about'
-}
-
-interface ScreenEntry {
-  id: AppScreen;
-  labelKey: string;
-  titleKey: string;
-}
-
-const SCREEN_ENTRIES: Array<ScreenEntry> = [
-  { id: AppScreen.SERVERS, labelKey: 'screen.servers.label', titleKey: 'screen.servers.title' },
-  { id: AppScreen.IMPORT, labelKey: 'screen.import.label', titleKey: 'screen.import.title' },
-  { id: AppScreen.SUBSCRIPTIONS, labelKey: 'screen.subscriptions.label', titleKey: 'screen.subscriptions.title' },
-  { id: AppScreen.ROUTING, labelKey: 'screen.routing.label', titleKey: 'screen.routing.title' },
-  { id: AppScreen.SETTINGS, labelKey: 'screen.settings.label', titleKey: 'screen.settings.title' },
-  { id: AppScreen.PER_APP, labelKey: 'screen.perApp.label', titleKey: 'screen.perApp.title' },
-  { id: AppScreen.ASSETS, labelKey: 'screen.assets.label', titleKey: 'screen.assets.title' },
-  { id: AppScreen.LOGS, labelKey: 'screen.logs.label', titleKey: 'screen.logs.title' },
-  { id: AppScreen.SCANNER, labelKey: 'screen.scanner.label', titleKey: 'screen.scanner.title' },
-  { id: AppScreen.ABOUT, labelKey: 'screen.about.label', titleKey: 'screen.about.title' }
-];
 
 @Entry
 @Component
@@ -134,7 +106,13 @@ struct Index {
     Row() {
       this.NavigationRail()
       Column() {
-        this.TopBar()
+        AppTopBar({
+          title: this.activeScreenTitle(),
+          summary: this.f2('topbar.summary', 'nodes', this.nodes.length.toString(), 'status', this.statusLabel()),
+          statusLabel: this.statusLabel(),
+          statusColor: this.statusColor(),
+          statusBackground: this.statusBackground()
+        })
         Scroll() {
           Column({ space: 14 }) {
             this.ActivePage()
@@ -182,34 +160,6 @@ struct Index {
     .width(92)
     .padding({ left: 10, right: 10, top: 18, bottom: 18 })
     .backgroundColor('#111827')
-  }
-
-  @Builder
-  private TopBar() {
-    Row({ space: 10 }) {
-      Column({ space: 2 }) {
-        Text(this.activeScreenTitle())
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#111827')
-        Text(this.f2('topbar.summary', 'nodes', this.nodes.length.toString(), 'status', this.statusLabel()))
-          .fontSize(12)
-          .fontColor('#6B7280')
-      }
-      .layoutWeight(1)
-
-      Text(this.statusLabel())
-        .fontSize(12)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.statusColor())
-        .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-        .backgroundColor(this.statusBackground())
-        .borderRadius(6)
-    }
-    .width('100%')
-    .height(70)
-    .padding({ left: 14, right: 14 })
-    .backgroundColor('#FFFFFF')
   }
 
   @Builder
@@ -502,7 +452,7 @@ struct Index {
   @Builder
   private RoutingPage() {
     Column({ space: 12 }) {
-      this.SectionHeader(this.t('routing.trafficMode'), this.t(`routing.mode.${this.trafficMode}`))
+      SectionHeader({ title: this.t('routing.trafficMode'), detail: this.t(`routing.mode.${this.trafficMode}`) })
       Row({ space: 8 }) {
         this.TrafficModeButton('global', this.t('routing.mode.global'))
         this.TrafficModeButton('rules', this.t('routing.mode.rules'))
@@ -510,7 +460,7 @@ struct Index {
       }
       .width('100%')
 
-      this.SectionHeader(this.t('routing.domainStrategy'), this.routingStrategy)
+      SectionHeader({ title: this.t('routing.domainStrategy'), detail: this.routingStrategy })
       Row({ space: 8 }) {
         this.StrategyButton('AsIs')
         this.StrategyButton('IPIfNonMatch')
@@ -529,23 +479,23 @@ struct Index {
   @Builder
   private SettingsPage() {
     Column({ space: 10 }) {
-      this.SectionHeader(this.t('settings.language.section'), this.t('settings.language.detail'))
+      SectionHeader({ title: this.t('settings.language.section'), detail: this.t('settings.language.detail') })
       this.LanguageToggle()
-      this.SectionHeader(this.t('settings.core'), this.t('settings.core.detail'))
+      SectionHeader({ title: this.t('settings.core'), detail: this.t('settings.core.detail') })
       this.SettingToggle(this.t('settings.sniffing'), 'pref_sniffing_enabled', this.settingSniffing, 'sniffing')
       this.SettingToggle(this.t('settings.routeOnly'), 'pref_route_only_enabled', this.settingRouteOnly, 'routeOnly')
       this.SettingToggle(this.t('settings.allowInsecure'), 'pref_allow_insecure', this.settingAllowInsecure, 'allowInsecure')
-      this.SectionHeader(this.t('settings.vpn'), this.t('settings.vpn.detail'))
+      SectionHeader({ title: this.t('settings.vpn'), detail: this.t('settings.vpn.detail') })
       this.SettingToggle(this.t('settings.perAppProxy'), 'pref_per_app_proxy', this.settingPerAppProxy, 'perApp')
       this.SettingToggle(this.t('settings.localDns'), 'pref_local_dns_enabled', this.settingLocalDns, 'localDns')
       this.SettingToggle(this.t('settings.fakeDns'), 'pref_fake_dns_enabled', this.settingFakeDns, 'fakeDns')
       this.SettingToggle(this.t('settings.proxySharing'), 'pref_proxy_sharing_enabled', this.settingProxySharing, 'proxySharing')
       this.SettingInput(this.t('settings.socksPort'), 'pref_socks_port', this.settingSocksPort, 'socksPort')
       this.SettingInput(this.t('settings.vpnDns'), 'pref_vpn_dns', this.settingVpnDns, 'vpnDns')
-      this.SectionHeader(this.t('settings.transport'), this.t('settings.transport.detail'))
+      SectionHeader({ title: this.t('settings.transport'), detail: this.t('settings.transport.detail') })
       this.SettingToggle(this.t('settings.mux'), 'pref_mux_enabled', this.settingMux, 'mux')
       this.SettingToggle(this.t('settings.fragment'), 'pref_fragment_enabled', this.settingFragment, 'fragment')
-      this.SectionHeader(this.t('settings.advanced'), this.t('settings.advanced.detail'))
+      SectionHeader({ title: this.t('settings.advanced'), detail: this.t('settings.advanced.detail') })
       this.SettingInput(this.t('settings.remoteDns'), 'pref_remote_dns', this.settingRemoteDns, 'remoteDns')
       this.SettingInput(this.t('settings.domesticDns'), 'pref_domestic_dns', this.settingDomesticDns, 'domesticDns')
       this.SettingInput(this.t('settings.delayTestUrl'), 'pref_delay_test_url', this.settingDelayTestUrl, 'delayTestUrl')
@@ -577,7 +527,7 @@ struct Index {
   @Builder
   private AssetsPage() {
     Column({ space: 12 }) {
-      this.SectionHeader(this.t('assets.section'), this.t('assets.section.detail'))
+      SectionHeader({ title: this.t('assets.section'), detail: this.t('assets.section.detail') })
       this.RoutingPreset('geosite.dat', this.t('assets.geosite.detail'))
       this.RoutingPreset('geoip.dat', this.t('assets.geoip.detail'))
       this.RoutingPreset(this.t('assets.userUrls.title'), this.t('assets.userUrls.detail'))
@@ -589,7 +539,18 @@ struct Index {
   @Builder
   private LogsPage() {
     Column({ space: 12 }) {
-      this.RuntimePanel()
+      RuntimeStatusPanel({
+        title: this.t('runtime.title'),
+        durationLabel: this.t('runtime.duration'),
+        durationValue: this.elapsedText,
+        uploadLabel: this.t('runtime.upload'),
+        uploadValue: formatBytes(this.stats.uploadBytes),
+        downloadLabel: this.t('runtime.download'),
+        downloadValue: formatBytes(this.stats.downloadBytes),
+        xrayActive: this.stats.xrayRunning,
+        tunActive: this.stats.tun2SocksRunning,
+        lastMessage: this.localizeCoreMessage(this.stats.lastMessage)
+      })
       this.LogPanel()
     }
     .width('100%')
@@ -626,32 +587,12 @@ struct Index {
   @Builder
   private AboutPage() {
     Column({ space: 10 }) {
-      this.SectionHeader('Hey VPN', this.t('about.section.detail'))
+      SectionHeader({ title: 'Hey VPN', detail: this.t('about.section.detail') })
       this.RoutingPreset(this.t('about.source.title'), this.t('about.source.detail'))
       this.RoutingPreset(this.t('about.core.title'), this.t('about.core.detail'))
       this.RoutingPreset(this.t('about.license.title'), this.t('about.license.detail'))
     }
     .width('100%')
-  }
-
-  @Builder
-  private SectionHeader(title: string, detail: string) {
-    Row() {
-      Text(title)
-        .fontSize(17)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#111827')
-        .layoutWeight(1)
-      Text(detail)
-        .fontSize(12)
-        .fontColor('#6B7280')
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-    }
-    .width('100%')
-    .padding({ left: 12, right: 12, top: 12, bottom: 12 })
-    .backgroundColor('#FFFFFF')
-    .borderRadius(8)
   }
 
   @Builder
@@ -1135,75 +1076,6 @@ struct Index {
     .padding(16)
     .backgroundColor('#FFFFFF')
     .borderRadius(8)
-  }
-
-  @Builder
-  private RuntimePanel() {
-    Column({ space: 12 }) {
-      Text(this.t('runtime.title'))
-        .fontSize(18)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#111827')
-        .width('100%')
-
-      Row({ space: 10 }) {
-        this.MetricTile(this.t('runtime.duration'), this.elapsedText)
-        this.MetricTile(this.t('runtime.upload'), formatBytes(this.stats.uploadBytes))
-        this.MetricTile(this.t('runtime.download'), formatBytes(this.stats.downloadBytes))
-      }
-      .width('100%')
-
-      Row({ space: 8 }) {
-        this.FlagTile('Xray', this.stats.xrayRunning)
-        this.FlagTile('TUN', this.stats.tun2SocksRunning)
-      }
-      .width('100%')
-
-      Text(this.localizeCoreMessage(this.stats.lastMessage))
-        .fontSize(12)
-        .fontColor('#4B5563')
-        .width('100%')
-    }
-    .width('100%')
-    .padding(16)
-    .backgroundColor('#FFFFFF')
-    .borderRadius(8)
-  }
-
-  @Builder
-  private MetricTile(label: string, value: string) {
-    Column({ space: 4 }) {
-      Text(label)
-        .fontSize(12)
-        .fontColor('#6B7280')
-      Text(value)
-        .fontSize(15)
-        .fontWeight(FontWeight.Medium)
-        .fontColor('#111827')
-    }
-    .layoutWeight(1)
-    .height(64)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
-    .backgroundColor('#F9FAFB')
-    .borderRadius(6)
-  }
-
-  @Builder
-  private FlagTile(label: string, active: boolean) {
-    Row({ space: 8 }) {
-      Circle()
-        .width(8)
-        .height(8)
-        .fill(active ? '#16A34A' : '#9CA3AF')
-      Text(label)
-        .fontSize(13)
-        .fontColor('#374151')
-    }
-    .height(34)
-    .padding({ left: 10, right: 10 })
-    .backgroundColor('#F9FAFB')
-    .borderRadius(6)
   }
 
   @Builder
