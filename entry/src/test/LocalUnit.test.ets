@@ -75,6 +75,28 @@ export default function localUnitTest() {
       expect(ssResult.outboundJson).assertContain('"method": "aes-128-gcm"');
     });
 
+    it('imports socks http wireguard and hysteria2 share links as outbound json', 0, () => {
+      const socks = parseShareLinkToOutboundJson('socks://dXNlcjpwYXNz@example.com:1080#socks-demo');
+      expect(socks.success).assertTrue();
+      expect(socks.outboundJson).assertContain('"protocol": "socks"');
+      expect(socks.outboundJson).assertContain('"user": "user"');
+
+      const http = parseShareLinkToOutboundJson('http://user:pass@example.com:8080#http-demo');
+      expect(http.success).assertTrue();
+      expect(http.outboundJson).assertContain('"protocol": "http"');
+      expect(http.outboundJson).assertContain('"pass": "pass"');
+
+      const wireguard = parseShareLinkToOutboundJson('wireguard://private-key@example.com:51820?publickey=peer-key&address=172.16.0.2%2F32&mtu=1420&reserved=1%2C2%2C3#wg-demo');
+      expect(wireguard.success).assertTrue();
+      expect(wireguard.outboundJson).assertContain('"protocol": "wireguard"');
+      expect(wireguard.outboundJson).assertContain('"endpoint": "example.com:51820"');
+
+      const hysteria2 = parseShareLinkToOutboundJson('hysteria2://auth@example.com:443?sni=hy.example&insecure=1&obfs-password=obfs#hy2-demo');
+      expect(hysteria2.success).assertTrue();
+      expect(hysteria2.outboundJson).assertContain('"protocol": "hysteria2"');
+      expect(hysteria2.outboundJson).assertContain('"obfsPassword": "obfs"');
+    });
+
     it('parses base64 subscription content into selectable nodes', 0, () => {
       const content = 'dmxlc3M6Ly8wMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDBAZXhhbXBsZS5jb206NDQzP2VuY3J5cHRpb249bm9uZSZzZWN1cml0eT1yZWFsaXR5JnNuaT13d3cuZXhhbXBsZS5jb20mZnA9Y2hyb21lJnBiaz10ZXN0LXB1YmxpYy1rZXkmc2lkPWFiY2QmdHlwZT10Y3AjZGVtbwp0cm9qYW46Ly9zZWNyZXRAZXhhbXBsZS5jb206NDQzP3NlY3VyaXR5PXRscyZzbmk9dHJvamFuLmV4YW1wbGUmdHlwZT13cyZob3N0PWNkbi5leGFtcGxlJnBhdGg9JTJGd3MjdHJvamFuLWRlbW8=';
       const nodes = SubscriptionManager.parseSubscriptionContent(content, 'https://sub.example/list');

@@ -15,6 +15,38 @@ const EMPTY_STATS: RuntimeStats = {
   lastMessage: 'Native bridge not queried yet.'
 };
 
+enum AppScreen {
+  SERVERS = 'servers',
+  IMPORT = 'import',
+  SUBSCRIPTIONS = 'subscriptions',
+  ROUTING = 'routing',
+  SETTINGS = 'settings',
+  PER_APP = 'perApp',
+  ASSETS = 'assets',
+  LOGS = 'logs',
+  SCANNER = 'scanner',
+  ABOUT = 'about'
+}
+
+interface ScreenEntry {
+  id: AppScreen;
+  label: string;
+  title: string;
+}
+
+const SCREEN_ENTRIES: Array<ScreenEntry> = [
+  { id: AppScreen.SERVERS, label: 'Nodes', title: 'Server List' },
+  { id: AppScreen.IMPORT, label: 'Add', title: 'Add Config' },
+  { id: AppScreen.SUBSCRIPTIONS, label: 'Subs', title: 'Subscriptions' },
+  { id: AppScreen.ROUTING, label: 'Route', title: 'Routing' },
+  { id: AppScreen.SETTINGS, label: 'Config', title: 'Settings' },
+  { id: AppScreen.PER_APP, label: 'Apps', title: 'Per-App Proxy' },
+  { id: AppScreen.ASSETS, label: 'Assets', title: 'User Assets' },
+  { id: AppScreen.LOGS, label: 'Logs', title: 'Logcat' },
+  { id: AppScreen.SCANNER, label: 'Scan', title: 'Scanner' },
+  { id: AppScreen.ABOUT, label: 'About', title: 'About' }
+];
+
 @Entry
 @Component
 struct Index {
@@ -37,6 +69,20 @@ struct Index {
   @State private selectedNodeId: string = '';
   @State private subscriptionMessage: string = 'No subscription loaded.';
   @State private subscriptionUpdating: boolean = false;
+  @State private activeScreen: AppScreen = AppScreen.SERVERS;
+  @State private searchQuery: string = '';
+  @State private importBuffer: string = '';
+  @State private selectedImportProtocol: string = 'vless';
+  @State private routingStrategy: string = 'AsIs';
+  @State private settingSniffing: boolean = true;
+  @State private settingRouteOnly: boolean = false;
+  @State private settingLocalDns: boolean = false;
+  @State private settingFakeDns: boolean = false;
+  @State private settingMux: boolean = false;
+  @State private settingFragment: boolean = false;
+  @State private settingProxySharing: boolean = false;
+  @State private settingAllowInsecure: boolean = false;
+  @State private settingPerAppProxy: boolean = false;
   private diagnosticRefreshing: boolean = false;
 
   aboutToAppear(): void {
@@ -54,20 +100,571 @@ struct Index {
   }
 
   build() {
-    Scroll() {
-      Column({ space: 16 }) {
-        this.StatusPanel()
-        this.SubscriptionPanel()
-        this.ConfigPanel()
-        this.RuntimePanel()
-        this.LogPanel()
+    Row() {
+      this.NavigationRail()
+      Column() {
+        this.TopBar()
+        Scroll() {
+          Column({ space: 14 }) {
+            this.ActivePage()
+          }
+          .width('100%')
+          .padding({ left: 14, right: 14, top: 14, bottom: 24 })
+        }
+        .layoutWeight(1)
+        .width('100%')
       }
-      .width('100%')
-      .padding({ left: 18, right: 18, top: 18, bottom: 28 })
+      .height('100%')
+      .layoutWeight(1)
+      .backgroundColor('#F6F8FA')
     }
     .height('100%')
     .width('100%')
     .backgroundColor('#F6F8FA')
+  }
+
+  @Builder
+  private NavigationRail() {
+    Column({ space: 8 }) {
+      Text('Hey')
+        .fontSize(22)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#FFFFFF')
+        .width('100%')
+        .textAlign(TextAlign.Center)
+        .margin({ bottom: 8 })
+
+      ForEach(SCREEN_ENTRIES, (entry: ScreenEntry) => {
+        Button(entry.label)
+          .height(36)
+          .width('100%')
+          .fontSize(12)
+          .fontColor(this.activeScreen === entry.id ? '#111827' : '#D1D5DB')
+          .backgroundColor(this.activeScreen === entry.id ? '#FFFFFF' : '#111827')
+          .borderRadius(6)
+          .onClick(() => {
+            this.activeScreen = entry.id;
+          })
+      }, (entry: ScreenEntry) => entry.id)
+    }
+    .height('100%')
+    .width(92)
+    .padding({ left: 10, right: 10, top: 18, bottom: 18 })
+    .backgroundColor('#111827')
+  }
+
+  @Builder
+  private TopBar() {
+    Row({ space: 10 }) {
+      Column({ space: 2 }) {
+        Text(this.activeScreenTitle())
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#111827')
+        Text(`${this.nodes.length} nodes / ${this.statusLabel()}`)
+          .fontSize(12)
+          .fontColor('#6B7280')
+      }
+      .layoutWeight(1)
+
+      Text(this.statusLabel())
+        .fontSize(12)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.statusColor())
+        .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+        .backgroundColor(this.statusBackground())
+        .borderRadius(6)
+    }
+    .width('100%')
+    .height(70)
+    .padding({ left: 14, right: 14 })
+    .backgroundColor('#FFFFFF')
+  }
+
+  @Builder
+  private ActivePage() {
+    if (this.activeScreen === AppScreen.SERVERS) {
+      this.ServersPage()
+    } else if (this.activeScreen === AppScreen.IMPORT) {
+      this.ImportPage()
+    } else if (this.activeScreen === AppScreen.SUBSCRIPTIONS) {
+      this.SubscriptionsPage()
+    } else if (this.activeScreen === AppScreen.ROUTING) {
+      this.RoutingPage()
+    } else if (this.activeScreen === AppScreen.SETTINGS) {
+      this.SettingsPage()
+    } else if (this.activeScreen === AppScreen.PER_APP) {
+      this.PerAppPage()
+    } else if (this.activeScreen === AppScreen.ASSETS) {
+      this.AssetsPage()
+    } else if (this.activeScreen === AppScreen.LOGS) {
+      this.LogsPage()
+    } else if (this.activeScreen === AppScreen.SCANNER) {
+      this.ScannerPage()
+    } else {
+      this.AboutPage()
+    }
+  }
+
+  @Builder
+  private ServersPage() {
+    Column({ space: 12 }) {
+      Row({ space: 8 }) {
+        Button(this.isRunning() ? 'Stop' : 'Start')
+          .height(42)
+          .layoutWeight(1)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .enabled(!this.isBusy())
+          .backgroundColor(this.isRunning() ? '#B42318' : '#166534')
+          .fontColor('#FFFFFF')
+          .borderRadius(8)
+          .onClick(() => {
+            if (this.isRunning()) {
+              this.stopConnection();
+            } else {
+              this.startConnection();
+            }
+          })
+        Button('Restart')
+          .height(42)
+          .width(92)
+          .fontSize(13)
+          .enabled(!this.isBusy())
+          .backgroundColor('#1D4ED8')
+          .fontColor('#FFFFFF')
+          .borderRadius(8)
+          .onClick(async () => {
+            await this.stopConnection();
+            await this.startConnection();
+          })
+      }
+      .width('100%')
+
+      Row({ space: 8 }) {
+        TextInput({ placeholder: 'Search', text: this.searchQuery })
+          .height(38)
+          .layoutWeight(1)
+          .fontSize(13)
+          .backgroundColor('#FFFFFF')
+          .borderRadius(6)
+          .onChange((value: string) => {
+            this.searchQuery = value;
+          })
+        Button('Add')
+          .height(38)
+          .width(68)
+          .fontSize(13)
+          .backgroundColor('#E5E7EB')
+          .fontColor('#374151')
+          .borderRadius(6)
+          .onClick(() => {
+            this.activeScreen = AppScreen.IMPORT;
+          })
+      }
+      .width('100%')
+
+      Row({ space: 8 }) {
+        Button('Sub Update')
+          .height(34)
+          .layoutWeight(1)
+          .fontSize(12)
+          .enabled(!this.subscriptionUpdating && !this.isBusy())
+          .backgroundColor('#EEF2FF')
+          .fontColor('#3730A3')
+          .borderRadius(6)
+          .onClick(() => {
+            this.updateSubscription();
+          })
+        Button('Ping All')
+          .height(34)
+          .layoutWeight(1)
+          .fontSize(12)
+          .backgroundColor('#F3F4F6')
+          .fontColor('#374151')
+          .borderRadius(6)
+          .onClick(() => {
+            this.appendLog('Delay test queued for all visible nodes.');
+          })
+        Button('Export')
+          .height(34)
+          .layoutWeight(1)
+          .fontSize(12)
+          .backgroundColor('#F3F4F6')
+          .fontColor('#374151')
+          .borderRadius(6)
+          .onClick(() => {
+            this.appendLog(`Export prepared for ${this.nodes.length} nodes.`);
+          })
+      }
+      .width('100%')
+
+      if (this.lastError.length > 0) {
+        Text(this.lastError)
+          .fontSize(12)
+          .fontColor('#B42318')
+          .width('100%')
+          .padding(10)
+          .backgroundColor('#FEF3F2')
+          .borderRadius(6)
+      }
+
+      Column({ space: 8 }) {
+        ForEach(this.filteredNodes(), (node: ProxyNode) => {
+          this.ServerCard(node)
+        }, (node: ProxyNode) => node.id)
+      }
+      .width('100%')
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private ServerCard(node: ProxyNode) {
+    Row({ space: 10 }) {
+      Column({ space: 4 }) {
+        Text(node.name)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#111827')
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(`${node.protocol.toUpperCase()}  ${node.sourceUrl.length > 0 ? 'subscription' : 'manual'}`)
+          .fontSize(12)
+          .fontColor('#6B7280')
+      }
+      .layoutWeight(1)
+
+      Button(node.id === this.selectedNodeId ? 'Current' : 'Use')
+        .height(34)
+        .width(86)
+        .fontSize(12)
+        .enabled(!this.isBusy())
+        .backgroundColor(node.id === this.selectedNodeId ? '#166534' : '#E5E7EB')
+        .fontColor(node.id === this.selectedNodeId ? '#FFFFFF' : '#374151')
+        .borderRadius(6)
+        .onClick(() => {
+          this.selectNode(node);
+        })
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor(node.id === this.selectedNodeId ? '#F0FDF4' : '#FFFFFF')
+    .borderRadius(8)
+  }
+
+  @Builder
+  private ImportPage() {
+    Column({ space: 12 }) {
+      Text('Protocol')
+        .fontSize(13)
+        .fontColor('#6B7280')
+        .width('100%')
+      Row({ space: 6 }) {
+        this.ProtocolButton('vless')
+        this.ProtocolButton('vmess')
+        this.ProtocolButton('ss')
+        this.ProtocolButton('trojan')
+      }
+      .width('100%')
+      Row({ space: 6 }) {
+        this.ProtocolButton('socks')
+        this.ProtocolButton('http')
+        this.ProtocolButton('wireguard')
+        this.ProtocolButton('hy2')
+      }
+      .width('100%')
+
+      TextArea({
+        placeholder: 'Paste share link, subscription item, or outbound JSON.',
+        text: this.importBuffer
+      })
+        .height(220)
+        .fontSize(13)
+        .backgroundColor('#FFFFFF')
+        .borderRadius(8)
+        .padding(10)
+        .onChange((value: string) => {
+          this.importBuffer = value;
+        })
+
+      Row({ space: 8 }) {
+        Button('Import')
+          .height(40)
+          .layoutWeight(1)
+          .enabled(!this.isBusy())
+          .backgroundColor('#166534')
+          .fontColor('#FFFFFF')
+          .borderRadius(8)
+          .onClick(() => {
+            this.importManualConfig();
+          })
+        Button('Use Current')
+          .height(40)
+          .width(116)
+          .backgroundColor('#E5E7EB')
+          .fontColor('#374151')
+          .borderRadius(8)
+          .onClick(() => {
+            this.importBuffer = this.outboundJson;
+          })
+      }
+      .width('100%')
+
+      this.ConfigPanel()
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private ProtocolButton(protocol: string) {
+    Button(protocol.toUpperCase())
+      .height(34)
+      .layoutWeight(1)
+      .fontSize(11)
+      .backgroundColor(this.selectedImportProtocol === protocol ? '#111827' : '#E5E7EB')
+      .fontColor(this.selectedImportProtocol === protocol ? '#FFFFFF' : '#374151')
+      .borderRadius(6)
+      .onClick(() => {
+        this.selectedImportProtocol = protocol;
+      })
+  }
+
+  @Builder
+  private SubscriptionsPage() {
+    Column({ space: 12 }) {
+      this.SubscriptionPanel()
+
+      Row({ space: 8 }) {
+        Button('Update All')
+          .height(38)
+          .layoutWeight(1)
+          .enabled(!this.subscriptionUpdating && !this.isBusy())
+          .backgroundColor('#1D4ED8')
+          .fontColor('#FFFFFF')
+          .borderRadius(8)
+          .onClick(() => {
+            this.updateSubscription();
+          })
+        Button('Scan URL')
+          .height(38)
+          .width(100)
+          .backgroundColor('#E5E7EB')
+          .fontColor('#374151')
+          .borderRadius(8)
+          .onClick(() => {
+            this.activeScreen = AppScreen.SCANNER;
+          })
+      }
+      .width('100%')
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private RoutingPage() {
+    Column({ space: 12 }) {
+      this.SectionHeader('Domain Strategy', this.routingStrategy)
+      Row({ space: 8 }) {
+        this.StrategyButton('AsIs')
+        this.StrategyButton('IPIfNonMatch')
+        this.StrategyButton('IPOnDemand')
+      }
+      .width('100%')
+
+      this.RoutingPreset('Global', 'All traffic uses proxy outbound.')
+      this.RoutingPreset('Bypass LAN/CN', 'Private and domestic destinations use direct outbound.')
+      this.RoutingPreset('Block Ads', 'Ad domains use block outbound.')
+      this.RoutingPreset('Custom Rulesets', 'Manage domain, IP, protocol and app rules.')
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private SettingsPage() {
+    Column({ space: 10 }) {
+      this.SectionHeader('Core', 'Xray runtime preferences')
+      this.SettingToggle('Sniffing', 'pref_sniffing_enabled', this.settingSniffing, 'sniffing')
+      this.SettingToggle('Route Only', 'pref_route_only_enabled', this.settingRouteOnly, 'routeOnly')
+      this.SettingToggle('Allow Insecure', 'pref_allow_insecure', this.settingAllowInsecure, 'allowInsecure')
+      this.SectionHeader('VPN', 'TUN and DNS preferences')
+      this.SettingToggle('Per-App Proxy', 'pref_per_app_proxy', this.settingPerAppProxy, 'perApp')
+      this.SettingToggle('Local DNS', 'pref_local_dns_enabled', this.settingLocalDns, 'localDns')
+      this.SettingToggle('Fake DNS', 'pref_fake_dns_enabled', this.settingFakeDns, 'fakeDns')
+      this.SettingToggle('Proxy Sharing', 'pref_proxy_sharing_enabled', this.settingProxySharing, 'proxySharing')
+      this.SectionHeader('Transport', 'Mux and fragmentation')
+      this.SettingToggle('Mux', 'pref_mux_enabled', this.settingMux, 'mux')
+      this.SettingToggle('Fragment', 'pref_fragment_enabled', this.settingFragment, 'fragment')
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private PerAppPage() {
+    Column({ space: 12 }) {
+      this.SettingToggle('Enable Per-App Proxy', 'pref_per_app_proxy', this.settingPerAppProxy, 'perApp')
+      this.RoutingPreset('Proxy selected apps', 'Application bundle allowlist.')
+      this.RoutingPreset('Bypass selected apps', 'Application bundle blocklist.')
+      this.RoutingPreset('System app visibility', 'Include or hide system bundles.')
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private AssetsPage() {
+    Column({ space: 12 }) {
+      this.SectionHeader('Assets', 'Geo and custom routing resources')
+      this.RoutingPreset('geosite.dat', 'Ruleset asset used by routing.')
+      this.RoutingPreset('geoip.dat', 'IP database asset used by routing.')
+      this.RoutingPreset('User Asset URLs', 'Remote assets and local refresh list.')
+      this.RoutingPreset('Backup / Restore', 'Import and export app profiles.')
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private LogsPage() {
+    Column({ space: 12 }) {
+      this.RuntimePanel()
+      this.LogPanel()
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private ScannerPage() {
+    Column({ space: 12 }) {
+      TextArea({
+        placeholder: 'Paste scanned QR result or URL scheme payload.',
+        text: this.importBuffer
+      })
+        .height(180)
+        .fontSize(13)
+        .backgroundColor('#FFFFFF')
+        .borderRadius(8)
+        .padding(10)
+        .onChange((value: string) => {
+          this.importBuffer = value;
+        })
+      Button('Import Result')
+        .height(40)
+        .width('100%')
+        .backgroundColor('#166534')
+        .fontColor('#FFFFFF')
+        .borderRadius(8)
+        .onClick(() => {
+          this.importManualConfig();
+        })
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private AboutPage() {
+    Column({ space: 10 }) {
+      this.SectionHeader('Hey VPN', 'HarmonyOS NEXT Xray client')
+      this.RoutingPreset('Source Reference', 'Function parity target: v2rayNG Android business flows.')
+      this.RoutingPreset('Core', 'Xray executable mode plus tun2socks adapter.')
+      this.RoutingPreset('License Note', 'Feature parity implementation; Android code and resources are not copied.')
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private SectionHeader(title: string, detail: string) {
+    Row() {
+      Text(title)
+        .fontSize(17)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#111827')
+        .layoutWeight(1)
+      Text(detail)
+        .fontSize(12)
+        .fontColor('#6B7280')
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .width('100%')
+    .padding({ left: 12, right: 12, top: 12, bottom: 12 })
+    .backgroundColor('#FFFFFF')
+    .borderRadius(8)
+  }
+
+  @Builder
+  private StrategyButton(value: string) {
+    Button(value)
+      .height(34)
+      .layoutWeight(1)
+      .fontSize(11)
+      .backgroundColor(this.routingStrategy === value ? '#111827' : '#E5E7EB')
+      .fontColor(this.routingStrategy === value ? '#FFFFFF' : '#374151')
+      .borderRadius(6)
+      .onClick(() => {
+        this.routingStrategy = value;
+        this.appendLog(`Routing strategy: ${value}`);
+      })
+  }
+
+  @Builder
+  private RoutingPreset(title: string, detail: string) {
+    Row({ space: 10 }) {
+      Column({ space: 4 }) {
+        Text(title)
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#111827')
+        Text(detail)
+          .fontSize(12)
+          .fontColor('#6B7280')
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .layoutWeight(1)
+      Button('Open')
+        .height(32)
+        .width(68)
+        .fontSize(12)
+        .backgroundColor('#E5E7EB')
+        .fontColor('#374151')
+        .borderRadius(6)
+        .onClick(() => {
+          this.appendLog(`${title} opened.`);
+        })
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(8)
+  }
+
+  @Builder
+  private SettingToggle(title: string, key: string, enabled: boolean, action: string) {
+    Row({ space: 10 }) {
+      Column({ space: 3 }) {
+        Text(title)
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#111827')
+        Text(key)
+          .fontSize(12)
+          .fontColor('#6B7280')
+      }
+      .layoutWeight(1)
+      Button(enabled ? 'On' : 'Off')
+        .height(32)
+        .width(62)
+        .fontSize(12)
+        .backgroundColor(enabled ? '#166534' : '#E5E7EB')
+        .fontColor(enabled ? '#FFFFFF' : '#374151')
+        .borderRadius(6)
+        .onClick(() => {
+          this.toggleSetting(action);
+        })
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(8)
   }
 
   @Builder
@@ -687,6 +1284,91 @@ struct Index {
     if (this.status === ConnectionStatus.RUNNING || this.status === ConnectionStatus.STARTING) {
       this.status = ConnectionStatus.ERROR;
     }
+  }
+
+  private activeScreenTitle(): string {
+    for (let index = 0; index < SCREEN_ENTRIES.length; index++) {
+      if (SCREEN_ENTRIES[index].id === this.activeScreen) {
+        return SCREEN_ENTRIES[index].title;
+      }
+    }
+    return 'Hey VPN';
+  }
+
+  private filteredNodes(): Array<ProxyNode> {
+    const keyword = this.searchQuery.trim().toLowerCase();
+    if (keyword.length === 0) {
+      return this.nodes;
+    }
+    const result: Array<ProxyNode> = [];
+    for (let index = 0; index < this.nodes.length; index++) {
+      const node = this.nodes[index];
+      const value = `${node.name} ${node.protocol} ${node.sourceUrl}`.toLowerCase();
+      if (value.indexOf(keyword) >= 0) {
+        result.push(node);
+      }
+    }
+    return result;
+  }
+
+  private async importManualConfig(): Promise<void> {
+    const value = this.importBuffer.trim();
+    if (value.length === 0) {
+      this.lastError = '导入内容为空。';
+      this.appendLog(this.lastError);
+      return;
+    }
+
+    if (value.toLowerCase().startsWith('http://') || value.toLowerCase().startsWith('https://')) {
+      this.subscriptionUrl = value;
+      this.activeScreen = AppScreen.SUBSCRIPTIONS;
+      await this.updateSubscription();
+      return;
+    }
+
+    this.outboundJson = value;
+    this.normalizeConfigInput();
+    if (!this.validationOk) {
+      return;
+    }
+    await this.saveProfileOnly();
+    this.importBuffer = this.outboundJson;
+    this.activeScreen = AppScreen.SERVERS;
+  }
+
+  private toggleSetting(action: string): void {
+    switch (action) {
+      case 'sniffing':
+        this.settingSniffing = !this.settingSniffing;
+        break;
+      case 'routeOnly':
+        this.settingRouteOnly = !this.settingRouteOnly;
+        break;
+      case 'localDns':
+        this.settingLocalDns = !this.settingLocalDns;
+        break;
+      case 'fakeDns':
+        this.settingFakeDns = !this.settingFakeDns;
+        break;
+      case 'mux':
+        this.settingMux = !this.settingMux;
+        break;
+      case 'fragment':
+        this.settingFragment = !this.settingFragment;
+        break;
+      case 'proxySharing':
+        this.settingProxySharing = !this.settingProxySharing;
+        break;
+      case 'allowInsecure':
+        this.settingAllowInsecure = !this.settingAllowInsecure;
+        break;
+      case 'perApp':
+        this.settingPerAppProxy = !this.settingPerAppProxy;
+        break;
+      default:
+        break;
+    }
+    this.appendLog(`Setting changed: ${action}`);
   }
 
   private statusLabel(): string {

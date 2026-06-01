@@ -42,7 +42,7 @@ class SocksInboundSettings {
 class EmptySettings {
 }
 
-const SUPPORTED_PROTOCOLS: Array<string> = ['vless', 'vmess', 'trojan', 'shadowsocks', 'socks'];
+const SUPPORTED_PROTOCOLS: Array<string> = ['vless', 'vmess', 'trojan', 'shadowsocks', 'socks', 'http', 'wireguard', 'hysteria2'];
 
 export const DEFAULT_SOCKS_HOST: string = '127.0.0.1';
 export const DEFAULT_SOCKS_PORT: number = 10808;
@@ -80,7 +80,7 @@ export function validateOutboundJson(outboundJson: string): ValidationResult {
     if (!isSupportedProtocol(outbound.protocol)) {
       return {
         valid: false,
-        message: `暂不支持 ${outbound.protocol}，MVP 先支持 VLESS、VMess、Trojan、Shadowsocks 和 SOCKS。`,
+        message: `暂不支持 ${outbound.protocol}，当前支持 VLESS、VMess、Trojan、Shadowsocks、SOCKS、HTTP、WireGuard 和 Hysteria2。`,
         protocol: outbound.protocol,
         normalizedJson: ''
       };

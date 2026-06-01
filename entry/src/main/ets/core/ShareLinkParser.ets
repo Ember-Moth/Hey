@@ -151,11 +151,56 @@ interface XrayShadowsocksSettings {
   servers: Array<XrayShadowsocksServer>;
 }
 
+interface XrayGenericUser {
+  user: string;
+  pass: string;
+}
+
+interface XrayGenericServer {
+  address: string;
+  port: number;
+  users?: Array<XrayGenericUser>;
+}
+
+interface XrayServerSettings {
+  servers: Array<XrayGenericServer>;
+}
+
+interface XrayWireguardPeer {
+  publicKey: string;
+  endpoint: string;
+  preSharedKey?: string;
+}
+
+interface XrayWireguardSettings {
+  secretKey: string;
+  address: Array<string>;
+  peers: Array<XrayWireguardPeer>;
+  mtu?: number;
+  reserved?: Array<number>;
+}
+
+interface XrayHysteria2Server {
+  address: string;
+  port: number;
+  password: string;
+  sni?: string;
+  alpn?: string;
+  insecure?: boolean;
+  obfsPassword?: string;
+  portHopping?: string;
+  pinSHA256?: string;
+}
+
+interface XrayHysteria2Settings {
+  servers: Array<XrayHysteria2Server>;
+}
+
 interface XrayOutbound {
   protocol: string;
   tag: string;
-  settings: XrayVlessSettings | XrayVmessSettings | XrayTrojanSettings | XrayShadowsocksSettings;
-  streamSettings: XrayStreamSettings;
+  settings: XrayVlessSettings | XrayVmessSettings | XrayTrojanSettings | XrayShadowsocksSettings | XrayServerSettings | XrayWireguardSettings | XrayHysteria2Settings;
+  streamSettings?: XrayStreamSettings;
 }
 
 interface VmessQrCode {
@@ -199,7 +244,13 @@ export function isSupportedShareLink(input: string): boolean {
   return lower.startsWith('vless://') ||
     lower.startsWith('vmess://') ||
     lower.startsWith('trojan://') ||
-    lower.startsWith('ss://');
+    lower.startsWith('ss://') ||
+    lower.startsWith('socks://') ||
+    lower.startsWith('http://') ||
+    lower.startsWith('https://') ||
+    lower.startsWith('wireguard://') ||
+    lower.startsWith('hysteria2://') ||
+    lower.startsWith('hy2://');
 }
 
 export function parseShareLinkToOutboundJson(input: string): ShareLinkParseResult {
@@ -219,7 +270,22 @@ export function parseShareLinkToOutboundJson(input: string): ShareLinkParseResul
     if (lower.startsWith('ss://')) {
       return parseShadowsocksLink(trimmed);
     }
-    return makeFailure('暂只支持 vless://、vmess://、trojan:// 和 ss:// 分享链接。');
+    if (lower.startsWith('socks://')) {
+      return parseSocksLink(trimmed);
+    }
+    if (lower.startsWith('http://')) {
+      return parseHttpProxyLink(trimmed, 'http');
+    }
+    if (lower.startsWith('https://')) {
+      return parseHttpProxyLink(trimmed, 'https');
+    }
+    if (lower.startsWith('wireguard://')) {
+      return parseWireguardLink(trimmed);
+    }
+    if (lower.startsWith('hysteria2://') || lower.startsWith('hy2://')) {
+      return parseHysteria2Link(trimmed);
+    }
+    return makeFailure('暂只支持 vless://、vmess://、trojan://、ss://、socks://、http://、wireguard:// 和 hysteria2:// 分享链接。');
   } catch (error) {
     return makeFailure(`分享链接解析失败：${stringifyError(error)}`);
   }
@@ -447,12 +513,172 @@ function makeShadowsocksResult(method: string, password: string, host: string, p
   return makeSuccess('shadowsocks', name.length > 0 ? name : deriveNameFromRaw(input), outbound);
 }
 
+function parseSocksLink(input: string): ShareLinkParseResult {
+  const parsed = parseOptionalUserShareLink(input, 'socks');
+  const server: XrayGenericServer = {
+    address: parsed.host,
+    port: parsed.port
+  };
+  const user = parseGenericUser(parsed.userInfo);
+  if (user !== null) {
+    server.users = [user];
+  }
+
+  const outbound: XrayOutbound = {
+    protocol: 'socks',
+    tag: 'proxy',
+    settings: {
+      servers: [server]
+    }
+  };
+  return makeSuccess('socks', parsed.fragment, outbound);
+}
+
+function parseHttpProxyLink(input: string, scheme: string): ShareLinkParseResult {
+  const parsed = parseOptionalUserShareLink(input, scheme);
+  const server: XrayGenericServer = {
+    address: parsed.host,
+    port: parsed.port
+  };
+  const user = parseGenericUser(parsed.userInfo);
+  if (user !== null) {
+    server.users = [user];
+  }
+
+  const outbound: XrayOutbound = {
+    protocol: 'http',
+    tag: 'proxy',
+    settings: {
+      servers: [server]
+    }
+  };
+  return makeSuccess('http', parsed.fragment, outbound);
+}
+
+function parseWireguardLink(input: string): ShareLinkParseResult {
+  const parsed = parseOptionalUserShareLink(input, 'wireguard');
+  if (parsed.userInfo.length === 0) {
+    return makeFailure('WireGuard 链接缺少私钥。', 'wireguard');
+  }
+  const publicKey = queryValue(parsed.query, 'publickey', queryValue(parsed.query, 'publicKey', ''));
+  if (publicKey.length === 0) {
+    return makeFailure('WireGuard 链接缺少 publickey。', 'wireguard');
+  }
+
+  const peer: XrayWireguardPeer = {
+    publicKey,
+    endpoint: formatEndpoint(parsed.host, parsed.port)
+  };
+  const preSharedKey = queryValue(parsed.query, 'presharedkey', queryValue(parsed.query, 'preSharedKey', ''));
+  if (preSharedKey.length > 0) {
+    peer.preSharedKey = preSharedKey;
+  }
+
+  const settings: XrayWireguardSettings = {
+    secretKey: parsed.userInfo,
+    address: splitCsvWithDefault(queryValue(parsed.query, 'address', ''), '172.16.0.2/32'),
+    peers: [peer]
+  };
+  const mtu = parseOptionalPositiveInt(queryValue(parsed.query, 'mtu', ''));
+  if (mtu > 0) {
+    settings.mtu = mtu;
+  }
+  const reserved = parseNumberCsv(queryValue(parsed.query, 'reserved', ''));
+  if (reserved.length > 0) {
+    settings.reserved = reserved;
+  }
+
+  const outbound: XrayOutbound = {
+    protocol: 'wireguard',
+    tag: 'proxy',
+    settings
+  };
+  return makeSuccess('wireguard', parsed.fragment, outbound);
+}
+
+function parseHysteria2Link(input: string): ShareLinkParseResult {
+  const scheme = input.toLowerCase().startsWith('hy2://') ? 'hy2' : 'hysteria2';
+  const parsed = parseOptionalUserShareLink(input, scheme);
+  if (parsed.userInfo.length === 0) {
+    return makeFailure('Hysteria2 链接缺少认证密码。', 'hysteria2');
+  }
+
+  const server: XrayHysteria2Server = {
+    address: parsed.host,
+    port: parsed.port,
+    password: parsed.userInfo
+  };
+  const sni = queryValue(parsed.query, 'sni', '');
+  if (sni.length > 0) {
+    server.sni = sni;
+  }
+  const alpn = queryValue(parsed.query, 'alpn', '');
+  if (alpn.length > 0) {
+    server.alpn = alpn;
+  }
+  const obfsPassword = queryValue(parsed.query, 'obfs-password', '');
+  if (obfsPassword.length > 0) {
+    server.obfsPassword = obfsPassword;
+  }
+  const portHopping = queryValue(parsed.query, 'mport', '');
+  if (portHopping.length > 0) {
+    server.portHopping = portHopping;
+  }
+  const pinSHA256 = queryValue(parsed.query, 'pinSHA256', '');
+  if (pinSHA256.length > 0) {
+    server.pinSHA256 = pinSHA256;
+  }
+  const insecure = queryValue(parsed.query, 'insecure', '');
+  if (insecure.length > 0) {
+    server.insecure = insecure === '1' || insecure.toLowerCase() === 'true';
+  }
+
+  const outbound: XrayOutbound = {
+    protocol: 'hysteria2',
+    tag: 'proxy',
+    settings: {
+      servers: [server]
+    }
+  };
+  return makeSuccess('hysteria2', parsed.fragment, outbound);
+}
+
 function tryParseUrlStyleShareLink(input: string, scheme: string): ParsedShareUrl | null {
   try {
     return parseUrlStyleShareLink(input, scheme);
   } catch (error) {
     return null;
   }
+}
+
+function parseOptionalUserShareLink(input: string, scheme: string): ParsedShareUrl {
+  const prefix = `${scheme}://`;
+  let body = input.substring(prefix.length);
+  let fragment = '';
+  const fragmentIndex = body.indexOf('#');
+  if (fragmentIndex >= 0) {
+    fragment = safeDecodeURIComponent(body.substring(fragmentIndex + 1));
+    body = body.substring(0, fragmentIndex);
+  }
+
+  let rawQuery = '';
+  const queryIndex = body.indexOf('?');
+  if (queryIndex >= 0) {
+    rawQuery = body.substring(queryIndex + 1);
+    body = body.substring(0, queryIndex);
+  }
+
+  const atIndex = body.lastIndexOf('@');
+  const userInfo = atIndex >= 0 ? safeDecodeURIComponent(body.substring(0, atIndex)) : '';
+  const target = atIndex >= 0 ? body.substring(atIndex + 1) : body;
+  const hostPort = parseHostPort(target);
+  return {
+    userInfo,
+    host: hostPort.host,
+    port: hostPort.port,
+    query: parseQuery(rawQuery),
+    fragment
+  };
 }
 
 function parseUrlStyleShareLink(input: string, scheme: string): ParsedShareUrl {
@@ -756,6 +982,61 @@ function deriveNameFromRaw(input: string): string {
     return safeDecodeURIComponent(input.substring(fragmentIndex + 1));
   }
   return '';
+}
+
+function parseGenericUser(userInfo: string): XrayGenericUser | null {
+  if (userInfo.length === 0) {
+    return null;
+  }
+  let value = userInfo;
+  if (value.indexOf(':') < 0) {
+    try {
+      value = decodeBase64ToUtf8(value);
+    } catch (error) {
+      value = userInfo;
+    }
+  }
+  const splitIndex = value.indexOf(':');
+  if (splitIndex < 0) {
+    return {
+      user: value,
+      pass: ''
+    };
+  }
+  return {
+    user: value.substring(0, splitIndex),
+    pass: value.substring(splitIndex + 1)
+  };
+}
+
+function formatEndpoint(host: string, port: number): string {
+  if (host.indexOf(':') >= 0 && !host.startsWith('[')) {
+    return `[${host}]:${port}`;
+  }
+  return `${host}:${port}`;
+}
+
+function parseOptionalPositiveInt(value: string): number {
+  if (value.length === 0) {
+    return 0;
+  }
+  const parsed = Number(value);
+  if (Number.isNaN(parsed) || parsed <= 0 || Math.floor(parsed) !== parsed) {
+    return 0;
+  }
+  return parsed;
+}
+
+function parseNumberCsv(value: string): Array<number> {
+  const result: Array<number> = [];
+  const parts = splitCsv(value);
+  for (let index = 0; index < parts.length; index++) {
+    const parsed = Number(parts[index]);
+    if (!Number.isNaN(parsed) && Math.floor(parsed) === parsed) {
+      result.push(parsed);
+    }
+  }
+  return result;
 }
 
 function empty(value: string | undefined): boolean {
