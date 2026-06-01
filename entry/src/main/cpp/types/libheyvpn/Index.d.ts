@@ -12,7 +12,7 @@ export interface RuntimeStats {
 }
 
 export const validateConfig: (configJson: string) => NativeResult;
-export const startXray: (configJson: string) => NativeResult;
+export const startXray: (configJson: string, workDir: string) => NativeResult;
 export const stopXray: () => NativeResult;
 export const startTun2Socks: (tunFd: number, host: string, port: number, mtu: number) => NativeResult;
 export const stopTun2Socks: () => NativeResult;

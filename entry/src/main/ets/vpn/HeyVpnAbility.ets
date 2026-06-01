@@ -58,7 +58,7 @@ export default class HeyVpnAbility extends VpnExtensionAbility {
       this.tunFd = await this.vpnConnection.create(createDefaultVpnConfig());
       this.emitInfo('VPN created.', `tunFd=${this.tunFd}`);
 
-      const xrayResult = startNativeXray(configJson);
+      const xrayResult = startNativeXray(configJson, this.context.filesDir);
       if (!xrayResult.ok) {
         throw new Error(xrayResult.message);
       }

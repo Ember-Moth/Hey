@@ -1,9 +1,14 @@
 import { vpnExtension } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 import { ConnectionStatus, GeneratedXrayConfig, ProxyProfile, RuntimeStats } from '../core/Profile';
 import { buildXrayConfig, validateOutboundJson } from '../core/XrayConfig';
 import { createStopVpnWant, createVpnWant } from '../vpn/VpnConstants';
 import { getNativeStats } from '../native/HeyNative';
+
+const LOG_DOMAIN: number = 0x0001;
+const LOG_TAG: string = 'HeyVpn';
+const START_VPN_TIMEOUT_MS: number = 10000;
 
 export interface ConnectionSnapshot {
   status: ConnectionStatus;
@@ -58,17 +63,23 @@ export class ConnectionController {
     this.generatedConfig = buildXrayConfig(profile.outboundJson);
 
     try {
-      await vpnExtension.startVpnExtensionAbility(createVpnWant(
+      hilog.info(LOG_DOMAIN, LOG_TAG, 'Calling startVpnExtensionAbility, configBytes=%{public}d, socks=%{public}s:%{public}d',
+        this.generatedConfig.configJson.length,
+        this.generatedConfig.socksHost,
+        this.generatedConfig.socksPort);
+      await this.withTimeout(vpnExtension.startVpnExtensionAbility(createVpnWant(
         this.generatedConfig.configJson,
         this.generatedConfig.socksHost,
         this.generatedConfig.socksPort
-      ));
+      )), START_VPN_TIMEOUT_MS, '启动 VPN 超时：系统 VPN 授权服务没有响应。若 hilog 中出现 com.huawei.hmos.vpndialog bundle not exist，说明当前系统镜像缺少 VPN 授权组件，请改用真机测试。');
+      hilog.info(LOG_DOMAIN, LOG_TAG, 'startVpnExtensionAbility returned.');
       this.status = ConnectionStatus.RUNNING;
       this.startedAt = Date.now();
     } catch (error) {
       const businessError = error as BusinessError;
       this.status = ConnectionStatus.ERROR;
       this.lastError = `启动 VPN 失败：${businessError.message ?? JSON.stringify(error)}`;
+      hilog.error(LOG_DOMAIN, LOG_TAG, 'startVpnExtensionAbility failed: %{public}s', this.lastError);
     }
     return this.getSnapshot();
   }
@@ -80,15 +91,34 @@ export class ConnectionController {
 
     this.status = ConnectionStatus.STOPPING;
     try {
+      hilog.info(LOG_DOMAIN, LOG_TAG, 'Calling stopVpnExtensionAbility.');
       await vpnExtension.stopVpnExtensionAbility(createStopVpnWant());
       this.status = ConnectionStatus.IDLE;
       this.startedAt = 0;
       this.lastError = '';
+      hilog.info(LOG_DOMAIN, LOG_TAG, 'stopVpnExtensionAbility returned.');
     } catch (error) {
       const businessError = error as BusinessError;
       this.status = ConnectionStatus.ERROR;
       this.lastError = `停止 VPN 失败：${businessError.message ?? JSON.stringify(error)}`;
+      hilog.error(LOG_DOMAIN, LOG_TAG, 'stopVpnExtensionAbility failed: %{public}s', this.lastError);
     }
     return this.getSnapshot();
+  }
+
+  private withTimeout<T>(operation: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+    return new Promise<T>((resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: Object) => void) => {
+      const timerId = setTimeout(() => {
+        reject(new Error(message));
+      }, timeoutMs);
+
+      operation.then((value: T) => {
+        clearTimeout(timerId);
+        resolve(value);
+      }).catch((error: BusinessError) => {
+        clearTimeout(timerId);
+        reject(error);
+      });
+    });
   }
 }

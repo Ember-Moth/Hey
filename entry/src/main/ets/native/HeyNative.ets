@@ -8,7 +8,7 @@ export interface NativeResult {
 
 interface NativeBridge {
   validateConfig(configJson: string): NativeResult;
-  startXray(configJson: string): NativeResult;
+  startXray(configJson: string, workDir: string): NativeResult;
   stopXray(): NativeResult;
   startTun2Socks(tunFd: number, host: string, port: number, mtu: number): NativeResult;
   stopTun2Socks(): NativeResult;
@@ -21,8 +21,8 @@ export function validateNativeConfig(configJson: string): NativeResult {
   return bridge.validateConfig(configJson);
 }
 
-export function startNativeXray(configJson: string): NativeResult {
-  return bridge.startXray(configJson);
+export function startNativeXray(configJson: string, workDir: string): NativeResult {
+  return bridge.startXray(configJson, workDir);
 }
 
 export function stopNativeXray(): NativeResult {
