@@ -5,6 +5,7 @@ import { AppLanguage, AppSettings, ConnectionStatus, ProxyNode, ProxyProfile, Ru
 import { normalizeOutboundInput } from '../core/XrayConfig';
 import { RuntimeLogPanel } from '../features/logs/LogPanel';
 import { RuntimeStatusPanel } from '../features/runtime/RuntimePanel';
+import { LanguageToggleRow, SettingInputRow, SettingToggleRow } from '../features/settings/SettingsControls';
 import { ConnectionController, ConnectionSnapshot } from '../services/ConnectionController';
 import { DelayTester, DelayTestResult } from '../services/DelayTester';
 import { DiagnosticEvent, DiagnosticLog } from '../services/DiagnosticLog';
@@ -645,177 +646,44 @@ struct Index {
 
   @Builder
   private SettingToggle(title: string, key: string, enabled: boolean, action: string) {
-    Row({ space: 10 }) {
-      Column({ space: 3 }) {
-        Text(title)
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#111827')
-        Text(key)
-          .fontSize(12)
-          .fontColor('#6B7280')
+    SettingToggleRow({
+      title: title,
+      settingKey: key,
+      isEnabled: enabled,
+      action: action,
+      onLabel: this.t('action.on'),
+      offLabel: this.t('action.off'),
+      onToggle: (nextAction: string) => {
+        this.toggleSetting(nextAction);
       }
-      .layoutWeight(1)
-      Button(enabled ? this.t('action.on') : this.t('action.off'))
-        .height(32)
-        .width(62)
-        .fontSize(12)
-        .backgroundColor(enabled ? '#166534' : '#E5E7EB')
-        .fontColor(enabled ? '#FFFFFF' : '#374151')
-        .borderRadius(6)
-        .onClick(() => {
-          this.toggleSetting(action);
-        })
-    }
-    .width('100%')
-    .padding(12)
-    .backgroundColor('#FFFFFF')
-    .borderRadius(8)
+    })
   }
 
   @Builder
   private LanguageToggle() {
-    Row({ space: 10 }) {
-      Column({ space: 3 }) {
-        Text(this.t('settings.language.title'))
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#111827')
-        Text(this.t('settings.language.key'))
-          .fontSize(12)
-          .fontColor('#6B7280')
+    LanguageToggleRow({
+      title: this.t('settings.language.title'),
+      settingKey: this.t('settings.language.key'),
+      zhLabel: this.t('settings.language.zh'),
+      enLabel: this.t('settings.language.en'),
+      language: this.language,
+      onChange: (nextLanguage: AppLanguage) => {
+        this.changeLanguage(nextLanguage);
       }
-      .layoutWeight(1)
-
-      Button(this.t('settings.language.zh'))
-        .height(32)
-        .width(96)
-        .fontSize(12)
-        .backgroundColor(this.language === 'zh' ? '#111827' : '#E5E7EB')
-        .fontColor(this.language === 'zh' ? '#FFFFFF' : '#374151')
-        .borderRadius(6)
-        .onClick(() => {
-          this.changeLanguage('zh');
-        })
-      Button(this.t('settings.language.en'))
-        .height(32)
-        .width(96)
-        .fontSize(12)
-        .backgroundColor(this.language === 'en' ? '#111827' : '#E5E7EB')
-        .fontColor(this.language === 'en' ? '#FFFFFF' : '#374151')
-        .borderRadius(6)
-        .onClick(() => {
-          this.changeLanguage('en');
-        })
-    }
-    .width('100%')
-    .padding(12)
-    .backgroundColor('#FFFFFF')
-    .borderRadius(8)
+    })
   }
 
   @Builder
   private SettingInput(title: string, key: string, value: string, action: string) {
-    Column({ space: 8 }) {
-      Row() {
-        Text(title)
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#111827')
-          .layoutWeight(1)
-        Text(key)
-          .fontSize(12)
-          .fontColor('#6B7280')
+    SettingInputRow({
+      title: title,
+      settingKey: key,
+      value: value,
+      action: action,
+      onChange: (nextAction: string, nextValue: string) => {
+        this.updateSettingInput(nextAction, nextValue);
       }
-      .width('100%')
-      TextInput({ text: value, placeholder: title })
-        .height(36)
-        .width('100%')
-        .fontSize(13)
-        .backgroundColor('#F9FAFB')
-        .borderRadius(6)
-        .onChange((next: string) => {
-          this.updateSettingInput(action, next);
-        })
-    }
-    .width('100%')
-    .padding(12)
-    .backgroundColor('#FFFFFF')
-    .borderRadius(8)
-  }
-
-  @Builder
-  private StatusPanel() {
-    Column({ space: 14 }) {
-      Row() {
-        Column({ space: 4 }) {
-          Text('Hey VPN')
-            .fontSize(26)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#111827')
-          Text('HarmonyOS NEXT / Xray MVP')
-            .fontSize(13)
-            .fontColor('#6B7280')
-        }
-        .layoutWeight(1)
-
-        Text(this.statusLabel())
-          .fontSize(13)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.statusColor())
-          .padding({ left: 12, right: 12, top: 7, bottom: 7 })
-          .backgroundColor(this.statusBackground())
-          .borderRadius(6)
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
-
-      Row({ space: 10 }) {
-        Button(this.isRunning() ? this.t('action.stop') : this.t('action.start'))
-          .height(44)
-          .layoutWeight(1)
-          .fontSize(16)
-          .fontWeight(FontWeight.Medium)
-          .enabled(!this.isBusy())
-          .backgroundColor(this.isRunning() ? '#B42318' : '#166534')
-          .fontColor('#FFFFFF')
-          .borderRadius(8)
-          .onClick(() => {
-            if (this.isRunning()) {
-              this.stopConnection();
-            } else {
-              this.startConnection();
-            }
-          })
-
-        Button(this.t('action.save'))
-          .height(44)
-          .width(96)
-          .fontSize(15)
-          .enabled(!this.isBusy())
-          .backgroundColor('#1D4ED8')
-          .fontColor('#FFFFFF')
-          .borderRadius(8)
-          .onClick(() => {
-            this.saveProfileOnly();
-          })
-      }
-      .width('100%')
-
-      if (this.lastError.length > 0) {
-        Text(this.lastError)
-          .fontSize(13)
-          .fontColor('#B42318')
-          .width('100%')
-          .padding(10)
-          .backgroundColor('#FEF3F2')
-          .borderRadius(6)
-      }
-    }
-    .width('100%')
-    .padding(16)
-    .backgroundColor('#FFFFFF')
-    .borderRadius(8)
+    })
   }
 
   @Builder
