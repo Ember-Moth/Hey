@@ -1,41 +1,21 @@
 import { common } from '@kit.AbilityKit';
-import { ActionListItem } from '../components/ActionListItem';
-import { SectionHeader } from '../components/SectionHeader';
+import { router } from '@kit.ArkUI';
 import { SelectionButton } from '../components/SelectionButton';
-import { DEFAULT_LANGUAGE, normalizeLanguage, translate } from '../core/I18n';
-import { AppLanguage, AppSettings, ConnectionStatus, ProxyNode, ProxyProfile, RuntimeStats, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
-import { normalizeOutboundInput } from '../core/XrayConfig';
-import { XrayConfigPanel } from '../features/import/ConfigPanel';
-import { RuntimeLogPanel } from '../features/logs/LogPanel';
-import { RuntimeStatusPanel } from '../features/runtime/RuntimePanel';
-import { LanguageToggleRow, SettingInputRow, SettingToggleRow } from '../features/settings/SettingsControls';
-import { ServerNodeCard } from '../features/servers/ServerCard';
-import { SubscriptionGroupRowModel, SubscriptionManagerPanel, SubscriptionNodeRowModel } from '../features/subscriptions/SubscriptionPanel';
-import { ConnectionController, ConnectionSnapshot } from '../services/ConnectionController';
+import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
+import { AppLanguage, AppSettings, ConnectionStatus, ProxyNode, RuntimeStats, SubscriptionGroup } from '../core/Profile';
 import { DelayTester, DelayTestResult } from '../services/DelayTester';
-import { DiagnosticEvent, DiagnosticLog } from '../services/DiagnosticLog';
-import { SubscriptionManager, SubscriptionUpdateResult } from '../services/SubscriptionManager';
-import { ProfileStore } from '../storage/ProfileStore';
-import { DEFAULT_APP_SETTINGS, SettingsStore } from '../storage/SettingsStore';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
-import { AppNavigationRail } from '../shell/AppNavigationRail';
-import { AppTopBar } from '../shell/AppTopBar';
-import { AppScreen, SCREEN_ENTRIES } from '../shell/AppScreen';
-import {
-  connectionStatusBackground,
-  connectionStatusColor,
-  formatBytes,
-  formatClockTime,
-  formatDuration
-} from '../utils/Formatters';
-import {
-  formatOne,
-  formatTwo,
-  localizedConnectionStatus,
-  localizedProfileSavedText,
-  localizedSubscriptionStatusText,
-  localizeCoreMessage
-} from '../utils/LocalizationPresenter';
+import { DEFAULT_APP_SETTINGS } from '../storage/SettingsStore';
+import { NodeSortKey, filterAndSortNodes, findInvalidNodes } from '../features/nodes/NodeOperations';
+import { NODES_CONTROLLER, NodesControllerState, SaveProfileResult } from '../features/nodes/NodesController';
+import { ServerNodeCard } from '../features/servers/ServerCard';
+import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
+import { RuntimeViewState, SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
+import { SUBSCRIPTIONS_CONTROLLER, SubscriptionsControllerState } from '../features/subscriptions/SubscriptionsController';
+import { AppRoute, HOME_ROUTE_ENTRIES, RouteEntry } from '../shell/AppRoute';
+import { PageHeader } from '../shell/PageHeader';
+import { formatBytes } from '../utils/Formatters';
+import { formatOne, formatTwo, localizeCoreMessage } from '../utils/LocalizationPresenter';
 
 const EMPTY_STATS: RuntimeStats = {
   uploadBytes: 0,
@@ -48,20 +28,14 @@ const EMPTY_STATS: RuntimeStats = {
 @Entry
 @Component
 struct Index {
-  private controller: ConnectionController = new ConnectionController();
   private timerId: number = -1;
+  private currentSettings: AppSettings = DEFAULT_APP_SETTINGS;
 
-  @State private outboundJson: string = '';
-  @State private status: ConnectionStatus = ConnectionStatus.IDLE;
-  @State private startedAt: number = 0;
-  @State private elapsedText: string = '00:00';
   @State private language: AppLanguage = DEFAULT_LANGUAGE;
+  @State private outboundJson: string = '';
   @State private validationMessage: string = translate(DEFAULT_LANGUAGE, 'validation.initial');
   @State private validationOk: boolean = false;
   @State private lastError: string = '';
-  @State private logs: Array<string> = [translate(DEFAULT_LANGUAGE, 'log.ready')];
-  @State private diagnosticLogs: Array<string> = [];
-  @State private stats: RuntimeStats = EMPTY_STATS;
   @State private profileUpdatedAt: string = translate(DEFAULT_LANGUAGE, 'profile.notSaved');
   @State private profileUpdatedAtValue: number = 0;
   @State private subscriptionUrl: string = '';
@@ -69,38 +43,23 @@ struct Index {
   @State private selectedNodeId: string = '';
   @State private subscriptionMessage: string = translate(DEFAULT_LANGUAGE, 'subscription.none');
   @State private subscriptionUpdatedAt: number = 0;
-  @State private subscriptionUpdating: boolean = false;
   @State private subscriptionGroups: Array<SubscriptionGroup> = [];
   @State private selectedGroupId: string = '';
-  @State private activeScreen: AppScreen = AppScreen.SERVERS;
   @State private searchQuery: string = '';
-  @State private importBuffer: string = '';
-  @State private selectedImportProtocol: string = 'vless';
-  @State private routingStrategy: string = 'AsIs';
-  @State private trafficMode: string = DEFAULT_APP_SETTINGS.trafficMode;
+  @State private sortKey: NodeSortKey = 'delay';
+  @State private subscriptionUpdating: boolean = false;
   @State private delayTesting: boolean = false;
-  @State private settingSniffing: boolean = true;
-  @State private settingRouteOnly: boolean = false;
-  @State private settingLocalDns: boolean = false;
-  @State private settingFakeDns: boolean = false;
-  @State private settingMux: boolean = false;
-  @State private settingFragment: boolean = false;
-  @State private settingProxySharing: boolean = false;
-  @State private settingAllowInsecure: boolean = false;
-  @State private settingPerAppProxy: boolean = false;
-  @State private settingSocksPort: string = DEFAULT_APP_SETTINGS.socksPort.toString();
-  @State private settingRemoteDns: string = DEFAULT_APP_SETTINGS.remoteDns;
-  @State private settingDomesticDns: string = DEFAULT_APP_SETTINGS.domesticDns;
-  @State private settingVpnDns: string = DEFAULT_APP_SETTINGS.vpnDns;
-  @State private settingLogLevel: string = DEFAULT_APP_SETTINGS.logLevel;
-  @State private settingDelayTestUrl: string = DEFAULT_APP_SETTINGS.delayTestUrl;
-  private diagnosticRefreshing: boolean = false;
+  @State private status: ConnectionStatus = ConnectionStatus.IDLE;
+  @State private elapsedText: string = '00:00';
+  @State private stats: RuntimeStats = EMPTY_STATS;
 
   aboutToAppear(): void {
     this.loadInitialState();
-    this.timerId = setInterval(() => {
-      this.refreshRuntime();
-    }, 1000);
+    if (this.timerId < 0) {
+      this.timerId = setInterval(() => {
+        this.refreshRuntime();
+      }, 1000);
+    }
   }
 
   aboutToDisappear(): void {
@@ -111,34 +70,39 @@ struct Index {
   }
 
   build() {
-    Row() {
-      AppNavigationRail({
-        activeScreen: $activeScreen,
-        entries: SCREEN_ENTRIES,
-        language: this.language,
-        brand: 'Hey'
+    Column() {
+      PageHeader({
+        title: this.t('screen.servers.title'),
+        summary: this.f2('topbar.summary', 'nodes', this.nodes.length.toString(), 'status', this.statusLabel()),
+        showBack: false,
+        statusLabel: this.statusLabel(),
+        statusColor: SHARED_RUNTIME_CONTROLLER.statusColor(),
+        statusBackground: SHARED_RUNTIME_CONTROLLER.statusBackground()
       })
-      Column() {
-        AppTopBar({
-          title: this.activeScreenTitle(),
-          summary: this.f2('topbar.summary', 'nodes', this.nodes.length.toString(), 'status', this.statusLabel()),
-          statusLabel: this.statusLabel(),
-          statusColor: this.statusColor(),
-          statusBackground: this.statusBackground()
-        })
-        Scroll() {
-          Column({ space: 14 }) {
-            this.ActivePage()
+
+      Scroll() {
+        Column({ space: 14 }) {
+          this.ConnectionControls()
+          this.NodeToolbar()
+
+          if (this.lastError.length > 0) {
+            Text(this.lastError)
+              .fontSize(12)
+              .fontColor('#B42318')
+              .width('100%')
+              .padding(10)
+              .backgroundColor('#FEF3F2')
+              .borderRadius(6)
           }
-          .width('100%')
-          .padding({ left: 14, right: 14, top: 14, bottom: 24 })
+
+          this.NodeList()
+          this.RouteList()
         }
-        .layoutWeight(1)
         .width('100%')
+        .padding({ left: 14, right: 14, top: 14, bottom: 24 })
       }
-      .height('100%')
       .layoutWeight(1)
-      .backgroundColor('#F6F8FA')
+      .width('100%')
     }
     .height('100%')
     .width('100%')
@@ -146,33 +110,8 @@ struct Index {
   }
 
   @Builder
-  private ActivePage() {
-    if (this.activeScreen === AppScreen.SERVERS) {
-      this.ServersPage()
-    } else if (this.activeScreen === AppScreen.IMPORT) {
-      this.ImportPage()
-    } else if (this.activeScreen === AppScreen.SUBSCRIPTIONS) {
-      this.SubscriptionsPage()
-    } else if (this.activeScreen === AppScreen.ROUTING) {
-      this.RoutingPage()
-    } else if (this.activeScreen === AppScreen.SETTINGS) {
-      this.SettingsPage()
-    } else if (this.activeScreen === AppScreen.PER_APP) {
-      this.PerAppPage()
-    } else if (this.activeScreen === AppScreen.ASSETS) {
-      this.AssetsPage()
-    } else if (this.activeScreen === AppScreen.LOGS) {
-      this.LogsPage()
-    } else if (this.activeScreen === AppScreen.SCANNER) {
-      this.ScannerPage()
-    } else {
-      this.AboutPage()
-    }
-  }
-
-  @Builder
-  private ServersPage() {
-    Column({ space: 12 }) {
+  private ConnectionControls() {
+    Column({ space: 8 }) {
       Row({ space: 8 }) {
         Button(this.isRunning() ? this.t('action.stop') : this.t('action.start'))
           .height(42)
@@ -206,6 +145,26 @@ struct Index {
       .width('100%')
 
       Row({ space: 8 }) {
+        Text(`${this.elapsedText}  ${formatBytes(this.stats.uploadBytes)} / ${formatBytes(this.stats.downloadBytes)}`)
+          .fontSize(12)
+          .fontColor('#6B7280')
+          .layoutWeight(1)
+        Text(this.localizeCoreMessage(this.stats.lastMessage))
+          .fontSize(12)
+          .fontColor('#374151')
+          .layoutWeight(1)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .width('100%')
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private NodeToolbar() {
+    Column({ space: 8 }) {
+      Row({ space: 8 }) {
         TextInput({ placeholder: this.t('action.search'), text: this.searchQuery })
           .height(38)
           .layoutWeight(1)
@@ -223,8 +182,25 @@ struct Index {
           .fontColor('#374151')
           .borderRadius(6)
           .onClick(() => {
-            this.activeScreen = AppScreen.IMPORT;
+            this.openRoute(AppRoute.IMPORT);
           })
+        Button(this.t('action.export'))
+          .height(38)
+          .width(76)
+          .fontSize(13)
+          .backgroundColor('#E5E7EB')
+          .fontColor('#374151')
+          .borderRadius(6)
+          .onClick(() => {
+            this.openRoute(AppRoute.EXPORT);
+          })
+      }
+      .width('100%')
+
+      Row({ space: 8 }) {
+        this.SortButton('delay', this.t('sort.delay'))
+        this.SortButton('name', this.t('sort.name'))
+        this.SortButton('protocol', this.t('sort.protocol'))
       }
       .width('100%')
 
@@ -251,7 +227,11 @@ struct Index {
           .onClick(() => {
             this.testVisibleNodeDelay();
           })
-        Button(this.t('action.export'))
+      }
+      .width('100%')
+
+      Row({ space: 8 }) {
+        Button(this.t('action.dedupe'))
           .height(34)
           .layoutWeight(1)
           .fontSize(12)
@@ -259,25 +239,18 @@ struct Index {
           .fontColor('#374151')
           .borderRadius(6)
           .onClick(() => {
-            this.appendLog(this.f1('log.exportPrepared', 'count', this.nodes.length.toString()));
+            this.dedupeNodes();
           })
-      }
-      .width('100%')
-
-      if (this.lastError.length > 0) {
-        Text(this.lastError)
+        Button(this.t('action.removeInvalid'))
+          .height(34)
+          .layoutWeight(1)
           .fontSize(12)
-          .fontColor('#B42318')
-          .width('100%')
-          .padding(10)
-          .backgroundColor('#FEF3F2')
+          .backgroundColor('#F3F4F6')
+          .fontColor('#374151')
           .borderRadius(6)
-      }
-
-      Column({ space: 8 }) {
-        ForEach(this.filteredNodes(), (node: ProxyNode) => {
-          this.ServerCard(node)
-        }, (node: ProxyNode) => node.id)
+          .onClick(() => {
+            this.removeInvalidNodes();
+          })
       }
       .width('100%')
     }
@@ -285,588 +258,130 @@ struct Index {
   }
 
   @Builder
-  private ServerCard(node: ProxyNode) {
-    ServerNodeCard({
-      node: node,
-      isSelected: node.id === this.selectedNodeId,
-      isBusy: this.isBusy(),
-      sourceLabel: node.sourceUrl.length > 0 ? this.t('node.source.subscription') : this.t('node.source.manual'),
-      delayText: this.nodeDelayText(node),
-      delayColor: this.nodeDelayColor(node),
-      currentLabel: this.t('action.current'),
-      useLabel: this.t('action.use'),
-      onSelect: (selectedNode: ProxyNode) => {
-        this.selectNode(selectedNode);
-      }
-    })
-  }
-
-  @Builder
-  private ImportPage() {
-    Column({ space: 12 }) {
-      Text(this.t('label.protocol'))
-        .fontSize(13)
-        .fontColor('#6B7280')
-        .width('100%')
-      Row({ space: 6 }) {
-        this.ProtocolButton('vless')
-        this.ProtocolButton('vmess')
-        this.ProtocolButton('ss')
-        this.ProtocolButton('trojan')
-      }
-      .width('100%')
-      Row({ space: 6 }) {
-        this.ProtocolButton('socks')
-        this.ProtocolButton('http')
-        this.ProtocolButton('wireguard')
-        this.ProtocolButton('hy2')
-      }
-      .width('100%')
-
-      TextArea({
-        placeholder: this.t('placeholder.importPayload'),
-        text: this.importBuffer
-      })
-        .height(220)
-        .fontSize(13)
-        .backgroundColor('#FFFFFF')
-        .borderRadius(8)
-        .padding(10)
-        .onChange((value: string) => {
-          this.importBuffer = value;
-        })
-
-      Row({ space: 8 }) {
-        Button(this.t('action.import'))
-          .height(40)
-          .layoutWeight(1)
-          .enabled(!this.isBusy())
-          .backgroundColor('#166534')
-          .fontColor('#FFFFFF')
-          .borderRadius(8)
-          .onClick(() => {
-            this.importManualConfig();
-          })
-        Button(this.t('action.useCurrent'))
-          .height(40)
-          .width(116)
-          .backgroundColor('#E5E7EB')
-          .fontColor('#374151')
-          .borderRadius(8)
-          .onClick(() => {
-            this.importBuffer = this.outboundJson;
-          })
-      }
-      .width('100%')
-
-      this.ConfigPanel()
-    }
-    .width('100%')
-  }
-
-  @Builder
-  private ProtocolButton(protocol: string) {
+  private SortButton(value: NodeSortKey, label: string) {
     SelectionButton({
-      label: protocol.toUpperCase(),
-      itemValue: protocol,
-      isSelected: this.selectedImportProtocol === protocol,
-      labelSize: 11,
-      onSelect: (value: string) => {
-        this.selectedImportProtocol = value;
-      }
-    })
-  }
-
-  @Builder
-  private SubscriptionsPage() {
-    Column({ space: 12 }) {
-      this.SubscriptionPanel()
-
-      Row({ space: 8 }) {
-        Button(this.t('action.updateAll'))
-          .height(38)
-          .layoutWeight(1)
-          .enabled(!this.subscriptionUpdating && !this.isBusy())
-          .backgroundColor('#1D4ED8')
-          .fontColor('#FFFFFF')
-          .borderRadius(8)
-          .onClick(() => {
-            this.updateSubscription();
-          })
-        Button(this.t('action.scanUrl'))
-          .height(38)
-          .width(100)
-          .backgroundColor('#E5E7EB')
-          .fontColor('#374151')
-          .borderRadius(8)
-          .onClick(() => {
-            this.activeScreen = AppScreen.SCANNER;
-          })
-      }
-      .width('100%')
-    }
-    .width('100%')
-  }
-
-  @Builder
-  private RoutingPage() {
-    Column({ space: 12 }) {
-      SectionHeader({ title: this.t('routing.trafficMode'), detail: this.t(`routing.mode.${this.trafficMode}`) })
-      Row({ space: 8 }) {
-        this.TrafficModeButton('global', this.t('routing.mode.global'))
-        this.TrafficModeButton('rules', this.t('routing.mode.rules'))
-        this.TrafficModeButton('direct', this.t('routing.mode.direct'))
-      }
-      .width('100%')
-
-      SectionHeader({ title: this.t('routing.domainStrategy'), detail: this.routingStrategy })
-      Row({ space: 8 }) {
-        this.StrategyButton('AsIs')
-        this.StrategyButton('IPIfNonMatch')
-        this.StrategyButton('IPOnDemand')
-      }
-      .width('100%')
-
-      this.RoutingPreset(this.t('routing.global.title'), this.t('routing.global.detail'))
-      this.RoutingPreset(this.t('routing.bypassLanCn.title'), this.t('routing.bypassLanCn.detail'))
-      this.RoutingPreset(this.t('routing.blockAds.title'), this.t('routing.blockAds.detail'))
-      this.RoutingPreset(this.t('routing.customRulesets.title'), this.t('routing.customRulesets.detail'))
-    }
-    .width('100%')
-  }
-
-  @Builder
-  private SettingsPage() {
-    Column({ space: 10 }) {
-      SectionHeader({ title: this.t('settings.language.section'), detail: this.t('settings.language.detail') })
-      this.LanguageToggle()
-      SectionHeader({ title: this.t('settings.core'), detail: this.t('settings.core.detail') })
-      this.SettingToggle(this.t('settings.sniffing'), 'pref_sniffing_enabled', this.settingSniffing, 'sniffing')
-      this.SettingToggle(this.t('settings.routeOnly'), 'pref_route_only_enabled', this.settingRouteOnly, 'routeOnly')
-      this.SettingToggle(this.t('settings.allowInsecure'), 'pref_allow_insecure', this.settingAllowInsecure, 'allowInsecure')
-      SectionHeader({ title: this.t('settings.vpn'), detail: this.t('settings.vpn.detail') })
-      this.SettingToggle(this.t('settings.perAppProxy'), 'pref_per_app_proxy', this.settingPerAppProxy, 'perApp')
-      this.SettingToggle(this.t('settings.localDns'), 'pref_local_dns_enabled', this.settingLocalDns, 'localDns')
-      this.SettingToggle(this.t('settings.fakeDns'), 'pref_fake_dns_enabled', this.settingFakeDns, 'fakeDns')
-      this.SettingToggle(this.t('settings.proxySharing'), 'pref_proxy_sharing_enabled', this.settingProxySharing, 'proxySharing')
-      this.SettingInput(this.t('settings.socksPort'), 'pref_socks_port', this.settingSocksPort, 'socksPort')
-      this.SettingInput(this.t('settings.vpnDns'), 'pref_vpn_dns', this.settingVpnDns, 'vpnDns')
-      SectionHeader({ title: this.t('settings.transport'), detail: this.t('settings.transport.detail') })
-      this.SettingToggle(this.t('settings.mux'), 'pref_mux_enabled', this.settingMux, 'mux')
-      this.SettingToggle(this.t('settings.fragment'), 'pref_fragment_enabled', this.settingFragment, 'fragment')
-      SectionHeader({ title: this.t('settings.advanced'), detail: this.t('settings.advanced.detail') })
-      this.SettingInput(this.t('settings.remoteDns'), 'pref_remote_dns', this.settingRemoteDns, 'remoteDns')
-      this.SettingInput(this.t('settings.domesticDns'), 'pref_domestic_dns', this.settingDomesticDns, 'domesticDns')
-      this.SettingInput(this.t('settings.delayTestUrl'), 'pref_delay_test_url', this.settingDelayTestUrl, 'delayTestUrl')
-      this.SettingInput(this.t('settings.logLevel'), 'pref_core_loglevel', this.settingLogLevel, 'logLevel')
-      Button(this.t('action.saveSettings'))
-        .height(40)
-        .width('100%')
-        .backgroundColor('#1D4ED8')
-        .fontColor('#FFFFFF')
-        .borderRadius(8)
-        .onClick(() => {
-          this.persistSettings();
-        })
-    }
-    .width('100%')
-  }
-
-  @Builder
-  private PerAppPage() {
-    Column({ space: 12 }) {
-      this.SettingToggle(this.t('settings.perAppProxy'), 'pref_per_app_proxy', this.settingPerAppProxy, 'perApp')
-      this.RoutingPreset(this.t('perApp.proxySelected.title'), this.t('perApp.proxySelected.detail'))
-      this.RoutingPreset(this.t('perApp.bypassSelected.title'), this.t('perApp.bypassSelected.detail'))
-      this.RoutingPreset(this.t('perApp.systemVisibility.title'), this.t('perApp.systemVisibility.detail'))
-    }
-    .width('100%')
-  }
-
-  @Builder
-  private AssetsPage() {
-    Column({ space: 12 }) {
-      SectionHeader({ title: this.t('assets.section'), detail: this.t('assets.section.detail') })
-      this.RoutingPreset('geosite.dat', this.t('assets.geosite.detail'))
-      this.RoutingPreset('geoip.dat', this.t('assets.geoip.detail'))
-      this.RoutingPreset(this.t('assets.userUrls.title'), this.t('assets.userUrls.detail'))
-      this.RoutingPreset(this.t('assets.backupRestore.title'), this.t('assets.backupRestore.detail'))
-    }
-    .width('100%')
-  }
-
-  @Builder
-  private LogsPage() {
-    Column({ space: 12 }) {
-      RuntimeStatusPanel({
-        title: this.t('runtime.title'),
-        durationLabel: this.t('runtime.duration'),
-        durationValue: this.elapsedText,
-        uploadLabel: this.t('runtime.upload'),
-        uploadValue: formatBytes(this.stats.uploadBytes),
-        downloadLabel: this.t('runtime.download'),
-        downloadValue: formatBytes(this.stats.downloadBytes),
-        xrayActive: this.stats.xrayRunning,
-        tunActive: this.stats.tun2SocksRunning,
-        lastMessage: this.localizeCoreMessage(this.stats.lastMessage)
-      })
-      RuntimeLogPanel({
-        title: this.t('logs.title'),
-        clearLabel: this.t('action.clear'),
-        items: this.allLogs(),
-        onClear: () => {
-          this.clearLogs();
-        }
-      })
-    }
-    .width('100%')
-  }
-
-  @Builder
-  private ScannerPage() {
-    Column({ space: 12 }) {
-      TextArea({
-        placeholder: this.t('placeholder.scannerPayload'),
-        text: this.importBuffer
-      })
-        .height(180)
-        .fontSize(13)
-        .backgroundColor('#FFFFFF')
-        .borderRadius(8)
-        .padding(10)
-        .onChange((value: string) => {
-          this.importBuffer = value;
-        })
-      Button(this.t('action.importResult'))
-        .height(40)
-        .width('100%')
-        .backgroundColor('#166534')
-        .fontColor('#FFFFFF')
-        .borderRadius(8)
-        .onClick(() => {
-          this.importManualConfig();
-        })
-    }
-    .width('100%')
-  }
-
-  @Builder
-  private AboutPage() {
-    Column({ space: 10 }) {
-      SectionHeader({ title: 'Hey VPN', detail: this.t('about.section.detail') })
-      this.RoutingPreset(this.t('about.source.title'), this.t('about.source.detail'))
-      this.RoutingPreset(this.t('about.core.title'), this.t('about.core.detail'))
-      this.RoutingPreset(this.t('about.license.title'), this.t('about.license.detail'))
-    }
-    .width('100%')
-  }
-
-  @Builder
-  private TrafficModeButton(value: string, label: string) {
-    SelectionButton({
-      label: label,
+      label,
       itemValue: value,
-      isSelected: this.trafficMode === value,
+      isSelected: this.sortKey === value,
       labelSize: 12,
       onSelect: (nextValue: string) => {
-        this.trafficMode = nextValue;
-        this.appendLog(this.f1('log.routingStrategy', 'value', label));
-        this.persistSettings();
+        this.sortKey = nextValue as NodeSortKey;
       }
     })
   }
 
   @Builder
-  private StrategyButton(value: string) {
-    SelectionButton({
-      label: value,
-      itemValue: value,
-      isSelected: this.routingStrategy === value,
-      labelSize: 11,
-      onSelect: (nextValue: string) => {
-        this.routingStrategy = nextValue;
-        this.appendLog(this.f1('log.routingStrategy', 'value', nextValue));
-        this.persistSettings();
-      }
-    })
-  }
-
-  @Builder
-  private RoutingPreset(title: string, detail: string) {
-    ActionListItem({
-      title: title,
-      detail: detail,
-      actionLabel: this.t('action.open'),
-      onAction: (openedTitle: string) => {
-        this.appendLog(this.f1('log.presetOpened', 'title', openedTitle));
-      }
-    })
-  }
-
-  @Builder
-  private SettingToggle(title: string, key: string, enabled: boolean, action: string) {
-    SettingToggleRow({
-      title: title,
-      settingKey: key,
-      isEnabled: enabled,
-      action: action,
-      onLabel: this.t('action.on'),
-      offLabel: this.t('action.off'),
-      onToggle: (nextAction: string) => {
-        this.toggleSetting(nextAction);
-      }
-    })
-  }
-
-  @Builder
-  private LanguageToggle() {
-    LanguageToggleRow({
-      title: this.t('settings.language.title'),
-      settingKey: this.t('settings.language.key'),
-      zhLabel: this.t('settings.language.zh'),
-      enLabel: this.t('settings.language.en'),
-      language: this.language,
-      onChange: (nextLanguage: AppLanguage) => {
-        this.changeLanguage(nextLanguage);
-      }
-    })
-  }
-
-  @Builder
-  private SettingInput(title: string, key: string, value: string, action: string) {
-    SettingInputRow({
-      title: title,
-      settingKey: key,
-      value: value,
-      action: action,
-      onChange: (nextAction: string, nextValue: string) => {
-        this.updateSettingInput(nextAction, nextValue);
-      }
-    })
-  }
-
-  @Builder
-  private SubscriptionPanel() {
-    SubscriptionManagerPanel({
-      title: this.t('subscription.panelTitle'),
-      summary: this.f2('subscription.summary', 'groups', this.subscriptionGroups.length.toString(), 'nodes', this.nodes.length.toString()),
-      urlPlaceholder: this.t('placeholder.subscriptionUrl'),
-      urlValue: this.subscriptionUrl,
-      saveGroupLabel: this.t('action.saveGroup'),
-      updateLabel: this.subscriptionUpdating ? this.t('action.updating') : this.t('action.update'),
-      message: this.subscriptionMessage,
-      isBusy: this.isBusy(),
-      isUpdating: this.subscriptionUpdating,
-      groupRows: this.subscriptionGroupRows(),
-      nodeRows: this.subscriptionNodeRows(),
-      currentLabel: this.t('action.current'),
-      openLabel: this.t('action.open'),
-      onLabel: this.t('action.on'),
-      offLabel: this.t('action.off'),
-      deleteLabel: this.t('action.del'),
-      selectedLabel: this.t('action.selected'),
-      useLabel: this.t('action.use'),
-      onUrlChange: (value: string) => {
-        this.subscriptionUrl = value;
-      },
-      onSaveGroup: () => {
-        this.saveSubscriptionGroup();
-      },
-      onUpdate: () => {
-        this.updateSubscription();
-      },
-      onSelectGroup: (group: SubscriptionGroup) => {
-        this.selectSubscriptionGroup(group);
-      },
-      onToggleGroup: (group: SubscriptionGroup) => {
-        this.toggleSubscriptionGroup(group);
-      },
-      onDeleteGroup: (group: SubscriptionGroup) => {
-        this.removeSubscriptionGroup(group);
-      },
-      onSelectNode: (node: ProxyNode) => {
-        this.selectNode(node);
-      }
-    })
-  }
-
-  private subscriptionGroupRows(): Array<SubscriptionGroupRowModel> {
-    const rows: Array<SubscriptionGroupRowModel> = [];
-    for (let index = 0; index < this.subscriptionGroups.length; index++) {
-      const group = this.subscriptionGroups[index];
-      rows.push({
-        group: group,
-        isSelected: group.id === this.selectedGroupId,
-        summary: this.f2('group.enabledSummary', 'status', group.enabled ? this.t('common.enabled') : this.t('common.disabled'), 'count', group.nodes.length.toString())
-      });
+  private NodeList() {
+    Column({ space: 8 }) {
+      ForEach(this.visibleNodes(), (node: ProxyNode) => {
+        ServerNodeCard({
+          node,
+          isSelected: node.id === this.selectedNodeId,
+          isBusy: this.isBusy(),
+          sourceLabel: node.sourceUrl.length > 0 ? this.t('node.source.subscription') : this.t('node.source.manual'),
+          delayText: this.nodeDelayText(node),
+          delayColor: this.nodeDelayColor(node),
+          currentLabel: this.t('action.current'),
+          useLabel: this.t('action.use'),
+          openLabel: this.t('action.detail'),
+          onSelect: (selectedNode: ProxyNode) => {
+            this.selectNode(selectedNode);
+          },
+          onOpen: (openedNode: ProxyNode) => {
+            this.openNodeDetail(openedNode);
+          }
+        })
+      }, (node: ProxyNode) => node.id)
     }
-    return rows;
-  }
-
-  private subscriptionNodeRows(): Array<SubscriptionNodeRowModel> {
-    const rows: Array<SubscriptionNodeRowModel> = [];
-    for (let index = 0; index < this.nodes.length; index++) {
-      const node = this.nodes[index];
-      rows.push({
-        node: node,
-        isSelected: node.id === this.selectedNodeId,
-        delayText: this.nodeDelayText(node),
-        delayColor: this.nodeDelayColor(node)
-      });
-    }
-    return rows;
+    .width('100%')
   }
 
   @Builder
-  private ConfigPanel() {
-    XrayConfigPanel({
-      title: this.t('config.title'),
-      updatedAt: this.profileUpdatedAt,
-      placeholder: this.t('placeholder.outbound'),
-      outboundJson: this.outboundJson,
-      validLabel: this.t('config.valid'),
-      invalidLabel: this.t('config.invalid'),
-      validationOk: this.validationOk,
-      validationMessage: this.validationMessage,
-      importLabel: this.t('action.import'),
-      isBusy: this.isBusy(),
-      onConfigChange: (value: string) => {
-        this.outboundJson = value;
-        this.validateConfig();
-      },
-      onImport: () => {
-        this.normalizeConfigInput();
-      }
-    })
+  private RouteList() {
+    Column({ space: 8 }) {
+      ForEach(HOME_ROUTE_ENTRIES, (entry: RouteEntry) => {
+        Row({ space: 10 }) {
+          Column({ space: 4 }) {
+            Text(this.t(entry.titleKey))
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#111827')
+            Text(this.t(entry.labelKey))
+              .fontSize(12)
+              .fontColor('#6B7280')
+          }
+          .layoutWeight(1)
+          Button(this.t('action.open'))
+            .height(32)
+            .width(68)
+            .fontSize(12)
+            .backgroundColor('#E5E7EB')
+            .fontColor('#374151')
+            .borderRadius(6)
+            .onClick(() => {
+              this.openRoute(entry.route);
+            })
+        }
+        .width('100%')
+        .padding(12)
+        .backgroundColor('#FFFFFF')
+        .borderRadius(8)
+      }, (entry: RouteEntry) => entry.route)
+    }
+    .width('100%')
   }
 
   private async loadInitialState(): Promise<void> {
     await this.loadSettings();
-    await this.loadProfile();
-    await this.loadSubscription();
+    await this.loadNodes();
+    await this.refreshRuntime();
   }
 
   private async loadSettings(): Promise<void> {
     try {
       const context = getContext(this) as common.Context;
-      this.applySettings(await SettingsStore.load(context));
+      this.currentSettings = await SETTINGS_CONTROLLER.load(context);
+      this.language = this.currentSettings.language;
     } catch (error) {
-      this.appendLog(this.f1('error.loadSettings', 'error', JSON.stringify(error)));
+      this.lastError = this.f1('error.loadSettings', 'error', JSON.stringify(error));
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
     }
   }
 
-  private applySettings(settings: AppSettings): void {
-    this.language = normalizeLanguage(settings.language);
-    this.settingSniffing = settings.sniffingEnabled;
-    this.settingRouteOnly = settings.routeOnlyEnabled;
-    this.settingPerAppProxy = settings.perAppProxyEnabled;
-    this.settingLocalDns = settings.localDnsEnabled;
-    this.settingFakeDns = settings.fakeDnsEnabled;
-    this.settingMux = settings.muxEnabled;
-    this.settingFragment = settings.fragmentEnabled;
-    this.settingProxySharing = settings.proxySharingEnabled;
-    this.settingAllowInsecure = settings.allowInsecure;
-    this.settingSocksPort = settings.socksPort.toString();
-    this.settingRemoteDns = settings.remoteDns;
-    this.settingDomesticDns = settings.domesticDns;
-    this.settingVpnDns = settings.vpnDns;
-    this.settingLogLevel = settings.logLevel;
-    this.settingDelayTestUrl = settings.delayTestUrl;
-    this.trafficMode = settings.trafficMode;
-    this.routingStrategy = settings.routingDomainStrategy;
-    this.refreshLocalizedStateText();
-  }
-
-  private async loadProfile(): Promise<void> {
+  private async loadNodes(): Promise<void> {
     try {
       const context = getContext(this) as common.Context;
-      const profile = await ProfileStore.load(context);
-      this.outboundJson = profile.outboundJson;
-      this.profileUpdatedAtValue = profile.updatedAt;
-      this.profileUpdatedAt = this.profileSavedText(profile.updatedAt);
-      this.validateConfig();
-      this.appendLog(this.t('log.profileLoaded'));
+      this.applyNodesState(await NODES_CONTROLLER.load(context, this.language));
     } catch (error) {
-      this.lastError = this.f1('error.loadProfile', 'error', JSON.stringify(error));
-      this.appendLog(this.lastError);
-    }
-  }
-
-  private async loadSubscription(): Promise<void> {
-    try {
-      const context = getContext(this) as common.Context;
-      const subscription = await SubscriptionStore.load(context);
-      this.applySubscription(subscription);
-
-      const selected = this.findNode(subscription.selectedNodeId);
-      if (selected !== null) {
-        this.outboundJson = selected.outboundJson;
-        this.validateConfig();
-      }
-    } catch (error) {
-      this.subscriptionMessage = this.f1('error.loadSubscription', 'error', JSON.stringify(error));
-      this.appendLog(this.subscriptionMessage);
-    }
-  }
-
-  private applySubscription(subscription: SubscriptionProfile): void {
-    this.subscriptionUrl = subscription.url;
-    this.nodes = subscription.nodes;
-    this.selectedNodeId = subscription.selectedNodeId;
-    this.subscriptionGroups = subscription.groups;
-    this.selectedGroupId = subscription.selectedGroupId;
-    this.subscriptionUpdatedAt = subscription.updatedAt;
-    this.subscriptionMessage = this.subscriptionStatusText(subscription.updatedAt);
-  }
-
-  private async saveProfileOnly(): Promise<void> {
-    const saved = await this.saveProfile();
-    if (saved !== null) {
-      this.appendLog(this.t('log.profileSaved'));
+      this.lastError = this.f1('error.loadSubscription', 'error', JSON.stringify(error));
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
     }
   }
 
   private async startConnection(): Promise<void> {
-    const profile = await this.saveProfile();
-    if (profile === null) {
+    const context = getContext(this) as common.Context;
+    const saved = await NODES_CONTROLLER.saveProfile(context, this.outboundJson, this.language);
+    this.applySaveProfileResult(saved);
+    if (saved.profile === null) {
+      SHARED_RUNTIME_CONTROLLER.appendLog(saved.lastError);
       return;
     }
 
-    this.appendLog(this.t('log.startingVpn'));
-    const snapshot = await this.controller.start(profile, this.buildSettingsFromState());
-    this.applySnapshot(snapshot);
-    this.appendLog(this.status === ConnectionStatus.RUNNING ? this.t('log.vpnStarted') : this.t('log.vpnStartIncomplete'));
+    try {
+      this.applyRuntimeState(await SHARED_RUNTIME_CONTROLLER.start(context, saved.profile, this.currentSettings, this.language));
+    } catch (error) {
+      this.lastError = this.f1('vpn.startFailed', 'error', JSON.stringify(error));
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
+    }
   }
 
   private async stopConnection(): Promise<void> {
-    this.appendLog(this.t('log.stoppingVpn'));
-    const snapshot = await this.controller.stop();
-    this.applySnapshot(snapshot);
-    this.appendLog(this.status === ConnectionStatus.IDLE ? this.t('log.vpnStopped') : this.t('log.vpnStopIncomplete'));
-  }
-
-  private async saveProfile(): Promise<ProxyProfile | null> {
-    const validation = normalizeOutboundInput(this.outboundJson);
-    this.validationOk = validation.valid;
-    this.validationMessage = this.localizeCoreMessage(validation.message);
-    if (!validation.valid) {
-      this.lastError = this.validationMessage;
-      this.appendLog(this.validationMessage);
-      return null;
-    }
-
     try {
       const context = getContext(this) as common.Context;
-      const profile = await ProfileStore.save(context, validation.normalizedJson);
-      this.outboundJson = validation.normalizedJson;
-      this.profileUpdatedAtValue = profile.updatedAt;
-      this.profileUpdatedAt = this.profileSavedText(profile.updatedAt);
-      this.lastError = '';
-      return profile;
+      this.applyRuntimeState(await SHARED_RUNTIME_CONTROLLER.stop(context, this.language));
     } catch (error) {
-      this.lastError = this.f1('error.saveProfile', 'error', JSON.stringify(error));
-      this.appendLog(this.lastError);
-      return null;
+      this.lastError = this.f1('vpn.stopFailed', 'error', JSON.stringify(error));
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
     }
   }
 
@@ -874,270 +389,176 @@ struct Index {
     if (this.subscriptionUpdating) {
       return;
     }
-    const url = this.subscriptionUrl.trim();
-    if (url.length === 0) {
-      this.subscriptionMessage = this.t('error.emptySubscriptionUrl');
-      this.appendLog(this.subscriptionMessage);
-      return;
-    }
-
     this.subscriptionUpdating = true;
     this.subscriptionMessage = this.t('log.updatingSubscription');
-    this.appendLog(this.t('log.updatingSubscription'));
+    SHARED_RUNTIME_CONTROLLER.appendLog(this.subscriptionMessage);
     try {
       const context = getContext(this) as common.Context;
-      await SubscriptionStore.saveUrl(context, url);
-      const result: SubscriptionUpdateResult = await SubscriptionManager.fetchAndParse(url);
-      if (!result.ok) {
-        this.subscriptionMessage = this.localizeCoreMessage(result.message);
-        this.appendLog(this.subscriptionMessage);
-        this.applySubscription(await SubscriptionStore.load(context));
-        return;
-      }
-
-      let selectedId = this.selectedNodeId;
-      if (this.findNodeInList(result.nodes, selectedId) === null) {
-        selectedId = result.nodes[0].id;
-      }
-      const subscription = await SubscriptionStore.saveNodes(context, url, result.nodes, selectedId);
-      this.applySubscription(subscription);
-      this.subscriptionMessage = this.localizeCoreMessage(result.message);
-      this.appendLog(this.subscriptionMessage);
-
-      const selected = this.findNode(selectedId);
-      if (selected !== null) {
-        await this.selectNode(selected);
-      }
-    } catch (error) {
-      this.subscriptionMessage = this.f1('error.updateSubscription', 'error', JSON.stringify(error));
-      this.appendLog(this.subscriptionMessage);
+      const state = await SUBSCRIPTIONS_CONTROLLER.update(context, this.subscriptionUrl, this.selectedNodeId, this.language);
+      this.applySubscriptionsState(state);
+      SHARED_RUNTIME_CONTROLLER.appendLog(state.subscriptionMessage);
+      this.applyNodesState(await NODES_CONTROLLER.load(context, this.language));
     } finally {
       this.subscriptionUpdating = false;
     }
   }
 
-  private async saveSubscriptionGroup(): Promise<void> {
-    const url = this.subscriptionUrl.trim();
-    if (url.length === 0) {
-      this.subscriptionMessage = this.t('error.emptySubscriptionUrl');
-      this.appendLog(this.subscriptionMessage);
-      return;
-    }
-    try {
-      const context = getContext(this) as common.Context;
-      const subscription = await SubscriptionStore.saveUrl(context, url);
-      this.applySubscription(subscription);
-      this.subscriptionMessage = this.t('log.subscriptionGroupSaved');
-      this.appendLog(this.subscriptionMessage);
-    } catch (error) {
-      this.subscriptionMessage = this.f1('error.saveSubscriptionGroup', 'error', JSON.stringify(error));
-      this.appendLog(this.subscriptionMessage);
-    }
-  }
-
-  private async selectSubscriptionGroup(group: SubscriptionGroup): Promise<void> {
-    try {
-      const context = getContext(this) as common.Context;
-      const subscription = await SubscriptionStore.selectGroup(context, group.id);
-      this.applySubscription(subscription);
-      const selected = this.findNode(subscription.selectedNodeId);
-      if (selected !== null) {
-        await this.selectNode(selected);
-      }
-      this.appendLog(this.f1('log.openedSubscriptionGroup', 'name', group.name));
-    } catch (error) {
-      this.subscriptionMessage = this.f1('error.selectSubscriptionGroup', 'error', JSON.stringify(error));
-      this.appendLog(this.subscriptionMessage);
-    }
-  }
-
-  private async toggleSubscriptionGroup(group: SubscriptionGroup): Promise<void> {
-    try {
-      const context = getContext(this) as common.Context;
-      const subscription = await SubscriptionStore.toggleGroup(context, group.id);
-      this.applySubscription(subscription);
-      this.appendLog(this.f2('log.subscriptionGroupToggled', 'name', group.name, 'status', group.enabled ? this.t('common.disabled') : this.t('common.enabled')));
-    } catch (error) {
-      this.subscriptionMessage = this.f1('error.toggleSubscriptionGroup', 'error', JSON.stringify(error));
-      this.appendLog(this.subscriptionMessage);
-    }
-  }
-
-  private async removeSubscriptionGroup(group: SubscriptionGroup): Promise<void> {
-    try {
-      const context = getContext(this) as common.Context;
-      const subscription = await SubscriptionStore.removeGroup(context, group.id);
-      this.applySubscription(subscription);
-      this.appendLog(this.f1('log.removedSubscriptionGroup', 'name', group.name));
-    } catch (error) {
-      this.subscriptionMessage = this.f1('error.removeSubscriptionGroup', 'error', JSON.stringify(error));
-      this.appendLog(this.subscriptionMessage);
-    }
-  }
-
   private async selectNode(node: ProxyNode): Promise<void> {
+    const context = getContext(this) as common.Context;
+    const state = await NODES_CONTROLLER.selectNode(context, node, this.language);
+    this.applyNodesState(state);
+    const message = state.lastError.length > 0 ? state.lastError : this.f1('log.selectedNode', 'name', node.name);
+    SHARED_RUNTIME_CONTROLLER.appendLog(message);
+  }
+
+  private async dedupeNodes(): Promise<void> {
+    const before = this.nodes.length;
+    const context = getContext(this) as common.Context;
+    this.applyNodesState(await NODES_CONTROLLER.dedupeActiveGroupNodes(context, this.language));
+    const removed = Math.max(0, before - this.nodes.length);
+    SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.nodesDeduped', 'count', removed.toString()));
+  }
+
+  private async removeInvalidNodes(): Promise<void> {
+    const invalid = findInvalidNodes(this.nodes).length;
+    const context = getContext(this) as common.Context;
+    this.applyNodesState(await NODES_CONTROLLER.removeInvalidNodes(context, this.language));
+    SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.invalidNodesRemoved', 'count', invalid.toString()));
+  }
+
+  private async testVisibleNodeDelay(): Promise<void> {
+    if (this.delayTesting) {
+      return;
+    }
+    const targets = this.visibleNodes();
+    if (targets.length === 0) {
+      return;
+    }
+
+    this.delayTesting = true;
+    SHARED_RUNTIME_CONTROLLER.appendLog(this.t('log.delayQueued'));
     try {
       const context = getContext(this) as common.Context;
-      const subscription = await SubscriptionStore.selectNode(context, node.id);
-      const profile = await ProfileStore.save(context, node.outboundJson);
-      this.applySubscription(subscription);
-      this.selectedNodeId = node.id;
-      this.outboundJson = node.outboundJson;
-      this.profileUpdatedAtValue = profile.updatedAt;
-      this.profileUpdatedAt = this.profileSavedText(profile.updatedAt);
-      this.validateConfig();
-      this.lastError = '';
-      this.appendLog(this.f1('log.selectedNode', 'name', node.name));
-    } catch (error) {
-      this.lastError = this.f1('error.selectNode', 'error', JSON.stringify(error));
-      this.appendLog(this.lastError);
-    }
-  }
-
-  private findNode(nodeId: string): ProxyNode | null {
-    return this.findNodeInList(this.nodes, nodeId);
-  }
-
-  private findNodeInList(nodes: Array<ProxyNode>, nodeId: string): ProxyNode | null {
-    for (let index = 0; index < nodes.length; index++) {
-      if (nodes[index].id === nodeId) {
-        return nodes[index];
+      for (let index = 0; index < targets.length; index++) {
+        const node = targets[index];
+        const startedAt = Date.now();
+        this.markNodeDelay(node.id, -1, 'testing', startedAt);
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.delayTestingNode', 'name', node.name));
+        const result: DelayTestResult = await DelayTester.measure(this.currentSettings.delayTestUrl, 8000);
+        const delayMs = result.ok ? result.delayMs : -1;
+        const status = result.ok ? 'ok' : result.status;
+        const subscription = await SubscriptionStore.saveNodeDelay(context, node.id, delayMs, status, Date.now());
+        this.applySubscriptionsState({
+          subscriptionUrl: subscription.url,
+          nodes: subscription.nodes,
+          selectedNodeId: subscription.selectedNodeId,
+          subscriptionMessage: this.subscriptionMessage,
+          subscriptionUpdatedAt: subscription.updatedAt,
+          subscriptionGroups: subscription.groups,
+          selectedGroupId: subscription.selectedGroupId
+        });
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f2('log.delayResult', 'name', node.name, 'result', this.delayResultText(result)));
       }
-    }
-    return null;
-  }
-
-  private validateConfig(): void {
-    const validation = normalizeOutboundInput(this.outboundJson);
-    this.validationOk = validation.valid;
-    this.validationMessage = this.localizeCoreMessage(validation.message);
-  }
-
-  private normalizeConfigInput(): void {
-    const validation = normalizeOutboundInput(this.outboundJson);
-    this.validationOk = validation.valid;
-    this.validationMessage = this.localizeCoreMessage(validation.message);
-    if (!validation.valid) {
-      this.lastError = this.validationMessage;
-      this.appendLog(this.validationMessage);
-      return;
-    }
-
-    this.outboundJson = validation.normalizedJson;
-    this.lastError = '';
-    this.appendLog(this.t('log.configImported'));
-  }
-
-  private applySnapshot(snapshot: ConnectionSnapshot): void {
-    this.status = snapshot.status;
-    this.startedAt = snapshot.startedAt;
-    this.lastError = this.localizeCoreMessage(snapshot.lastError);
-    this.refreshRuntime();
-  }
-
-  private refreshRuntime(): void {
-    this.stats = this.controller.getStats();
-    this.refreshDiagnostics();
-    if (this.startedAt <= 0 || this.status !== ConnectionStatus.RUNNING) {
-      this.elapsedText = '00:00';
-      return;
-    }
-    const seconds = Math.max(0, Math.floor((Date.now() - this.startedAt) / 1000));
-    this.elapsedText = formatDuration(seconds);
-  }
-
-  private appendLog(message: string): void {
-    const line = `${formatClockTime(Date.now())}  ${message}`;
-    const next = [line].concat(this.logs);
-    this.logs = next.slice(0, 80);
-  }
-
-  private clearLogs(): void {
-    try {
-      const context = getContext(this) as common.Context;
-      DiagnosticLog.clear(context);
     } catch (error) {
-      this.appendLog(this.f1('error.clearDiagnostics', 'error', JSON.stringify(error)));
-    }
-    this.logs = [];
-    this.diagnosticLogs = [];
-  }
-
-  private allLogs(): Array<string> {
-    return this.diagnosticLogs.concat(this.logs).slice(0, 120);
-  }
-
-  private async refreshDiagnostics(): Promise<void> {
-    if (this.diagnosticRefreshing) {
-      return;
-    }
-    this.diagnosticRefreshing = true;
-
-    try {
-      const context = getContext(this) as common.Context;
-      const events = await DiagnosticLog.read(context, 80);
-      this.diagnosticLogs = events.map((event: DiagnosticEvent) => DiagnosticLog.format(event, (value: number) => formatClockTime(value)));
-      this.applyDiagnosticStats(events);
-      this.applyDiagnosticError(events);
+      this.lastError = this.f1('error.delayTest', 'error', JSON.stringify(error));
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
     } finally {
-      this.diagnosticRefreshing = false;
+      this.delayTesting = false;
     }
   }
 
-  private applyDiagnosticStats(events: Array<DiagnosticEvent>): void {
-    for (let index = 0; index < events.length; index++) {
-      const event = events[index];
-      if (event.uploadBytes !== undefined || event.downloadBytes !== undefined) {
-        this.stats = {
-          uploadBytes: event.uploadBytes ?? 0,
-          downloadBytes: event.downloadBytes ?? 0,
-          xrayRunning: event.xrayRunning ?? false,
-          tun2SocksRunning: event.tun2SocksRunning ?? false,
-          lastMessage: event.details ?? event.message
-        };
-        return;
-      }
-    }
-  }
-
-  private applyDiagnosticError(events: Array<DiagnosticEvent>): void {
-    if (events.length === 0) {
-      return;
-    }
-    const event = events[0];
-    if (event.level !== 'error') {
-      return;
-    }
-    const message = event.details !== undefined && event.details.length > 0 ? `${event.message} ${event.details}` : event.message;
-    this.lastError = this.localizeCoreMessage(message);
-    if (this.status === ConnectionStatus.RUNNING || this.status === ConnectionStatus.STARTING) {
-      this.status = ConnectionStatus.ERROR;
-    }
-  }
-
-  private activeScreenTitle(): string {
-    for (let index = 0; index < SCREEN_ENTRIES.length; index++) {
-      if (SCREEN_ENTRIES[index].id === this.activeScreen) {
-        return this.t(SCREEN_ENTRIES[index].titleKey);
-      }
-    }
-    return 'Hey VPN';
-  }
-
-  private filteredNodes(): Array<ProxyNode> {
-    const keyword = this.searchQuery.trim().toLowerCase();
-    if (keyword.length === 0) {
-      return this.nodes;
-    }
-    const result: Array<ProxyNode> = [];
+  private markNodeDelay(nodeId: string, delayMs: number, delayStatus: string, delayTestAt: number): void {
+    const next = new Array<ProxyNode>();
     for (let index = 0; index < this.nodes.length; index++) {
       const node = this.nodes[index];
-      const value = `${node.name} ${node.protocol} ${node.sourceUrl}`.toLowerCase();
-      if (value.indexOf(keyword) >= 0) {
-        result.push(node);
+      if (node.id === nodeId) {
+        next.push({
+          id: node.id,
+          name: node.name,
+          protocol: node.protocol,
+          outboundJson: node.outboundJson,
+          sourceUrl: node.sourceUrl,
+          rawLink: node.rawLink,
+          updatedAt: node.updatedAt,
+          delayMs,
+          delayTestAt,
+          delayStatus
+        });
+      } else {
+        next.push(node);
       }
     }
-    return result;
+    this.nodes = next;
+  }
+
+  private async refreshRuntime(): Promise<void> {
+    try {
+      const context = getContext(this) as common.Context;
+      this.applyRuntimeState(await SHARED_RUNTIME_CONTROLLER.refresh(context, this.language));
+    } catch (error) {
+      this.lastError = JSON.stringify(error);
+    }
+  }
+
+  private applyNodesState(state: NodesControllerState): void {
+    this.outboundJson = state.outboundJson;
+    this.validationOk = state.validationOk;
+    this.validationMessage = state.validationMessage;
+    this.profileUpdatedAt = state.profileUpdatedAt;
+    this.profileUpdatedAtValue = state.profileUpdatedAtValue;
+    this.subscriptionUrl = state.subscriptionUrl;
+    this.nodes = state.nodes;
+    this.selectedNodeId = state.selectedNodeId;
+    this.subscriptionMessage = state.subscriptionMessage;
+    this.subscriptionUpdatedAt = state.subscriptionUpdatedAt;
+    this.subscriptionGroups = state.subscriptionGroups;
+    this.selectedGroupId = state.selectedGroupId;
+    this.lastError = state.lastError;
+  }
+
+  private applySaveProfileResult(result: SaveProfileResult): void {
+    this.outboundJson = result.outboundJson;
+    this.validationOk = result.validationOk;
+    this.validationMessage = result.validationMessage;
+    if (result.profile !== null) {
+      this.profileUpdatedAt = result.profileUpdatedAt;
+      this.profileUpdatedAtValue = result.profileUpdatedAtValue;
+    }
+    this.lastError = result.lastError;
+  }
+
+  private applySubscriptionsState(state: SubscriptionsControllerState): void {
+    this.subscriptionUrl = state.subscriptionUrl;
+    this.nodes = state.nodes;
+    this.selectedNodeId = state.selectedNodeId;
+    this.subscriptionMessage = state.subscriptionMessage;
+    this.subscriptionUpdatedAt = state.subscriptionUpdatedAt;
+    this.subscriptionGroups = state.subscriptionGroups;
+    this.selectedGroupId = state.selectedGroupId;
+  }
+
+  private applyRuntimeState(state: RuntimeViewState): void {
+    this.status = state.status;
+    this.elapsedText = state.elapsedText;
+    this.stats = state.stats;
+    this.lastError = state.lastError;
+  }
+
+  private visibleNodes(): Array<ProxyNode> {
+    return filterAndSortNodes(this.nodes, this.searchQuery, this.sortKey);
+  }
+
+  private openRoute(route: AppRoute): void {
+    router.pushUrl({ url: route });
+  }
+
+  private openNodeDetail(node: ProxyNode): void {
+    router.pushUrl({
+      url: AppRoute.NODE_DETAIL,
+      params: {
+        nodeId: node.id
+      }
+    });
   }
 
   private nodeDelayText(node: ProxyNode): string {
@@ -1178,245 +599,12 @@ struct Index {
     return `${this.t('node.delay.failed')} ${result.status}`;
   }
 
-  private async importManualConfig(): Promise<void> {
-    const value = this.importBuffer.trim();
-    if (value.length === 0) {
-      this.lastError = this.t('error.emptyImport');
-      this.appendLog(this.lastError);
-      return;
-    }
-
-    if (value.toLowerCase().startsWith('http://') || value.toLowerCase().startsWith('https://')) {
-      this.subscriptionUrl = value;
-      this.activeScreen = AppScreen.SUBSCRIPTIONS;
-      await this.updateSubscription();
-      return;
-    }
-
-    this.outboundJson = value;
-    this.normalizeConfigInput();
-    if (!this.validationOk) {
-      return;
-    }
-    await this.saveProfileOnly();
-    this.importBuffer = this.outboundJson;
-    this.activeScreen = AppScreen.SERVERS;
-  }
-
-  private async testVisibleNodeDelay(): Promise<void> {
-    if (this.delayTesting) {
-      return;
-    }
-    const targets = this.filteredNodes();
-    if (targets.length === 0) {
-      return;
-    }
-
-    this.delayTesting = true;
-    this.appendLog(this.t('log.delayQueued'));
-    try {
-      const context = getContext(this) as common.Context;
-      for (let index = 0; index < targets.length; index++) {
-        const node = targets[index];
-        const startedAt = Date.now();
-        this.markNodeDelay(node.id, -1, 'testing', startedAt);
-        this.appendLog(this.f1('log.delayTestingNode', 'name', node.name));
-        const result: DelayTestResult = await DelayTester.measure(this.settingDelayTestUrl, 8000);
-        const delayMs = result.ok ? result.delayMs : -1;
-        const status = result.ok ? 'ok' : result.status;
-        const subscription = await SubscriptionStore.saveNodeDelay(context, node.id, delayMs, status, Date.now());
-        this.applySubscription(subscription);
-        this.appendLog(this.f2('log.delayResult', 'name', node.name, 'result', this.delayResultText(result)));
-      }
-    } catch (error) {
-      this.lastError = this.f1('error.delayTest', 'error', JSON.stringify(error));
-      this.appendLog(this.lastError);
-    } finally {
-      this.delayTesting = false;
-    }
-  }
-
-  private markNodeDelay(nodeId: string, delayMs: number, delayStatus: string, delayTestAt: number): void {
-    const next = new Array<ProxyNode>();
-    for (let index = 0; index < this.nodes.length; index++) {
-      const node = this.nodes[index];
-      if (node.id === nodeId) {
-        const updated: ProxyNode = {
-          id: node.id,
-          name: node.name,
-          protocol: node.protocol,
-          outboundJson: node.outboundJson,
-          sourceUrl: node.sourceUrl,
-          rawLink: node.rawLink,
-          updatedAt: node.updatedAt,
-          delayMs,
-          delayTestAt,
-          delayStatus
-        };
-        next.push(updated);
-      } else {
-        next.push(node);
-      }
-    }
-    this.nodes = next;
-  }
-
-  private toggleSetting(action: string): void {
-    switch (action) {
-      case 'sniffing':
-        this.settingSniffing = !this.settingSniffing;
-        break;
-      case 'routeOnly':
-        this.settingRouteOnly = !this.settingRouteOnly;
-        break;
-      case 'localDns':
-        this.settingLocalDns = !this.settingLocalDns;
-        break;
-      case 'fakeDns':
-        this.settingFakeDns = !this.settingFakeDns;
-        break;
-      case 'mux':
-        this.settingMux = !this.settingMux;
-        break;
-      case 'fragment':
-        this.settingFragment = !this.settingFragment;
-        break;
-      case 'proxySharing':
-        this.settingProxySharing = !this.settingProxySharing;
-        break;
-      case 'allowInsecure':
-        this.settingAllowInsecure = !this.settingAllowInsecure;
-        break;
-      case 'perApp':
-        this.settingPerAppProxy = !this.settingPerAppProxy;
-        break;
-      default:
-        break;
-    }
-    this.appendLog(this.f1('log.settingsChanged', 'action', action));
-    this.persistSettings(false);
-  }
-
-  private updateSettingInput(action: string, value: string): void {
-    switch (action) {
-      case 'socksPort':
-        this.settingSocksPort = value;
-        break;
-      case 'vpnDns':
-        this.settingVpnDns = value;
-        break;
-      case 'remoteDns':
-        this.settingRemoteDns = value;
-        break;
-      case 'domesticDns':
-        this.settingDomesticDns = value;
-        break;
-      case 'delayTestUrl':
-        this.settingDelayTestUrl = value;
-        break;
-      case 'logLevel':
-        this.settingLogLevel = value;
-        break;
-      default:
-        break;
-    }
-  }
-
-  private async persistSettings(showMessage: boolean = true): Promise<void> {
-    try {
-      const context = getContext(this) as common.Context;
-      const saved = await SettingsStore.save(context, this.buildSettingsFromState());
-      this.applySettings(saved);
-      if (showMessage) {
-        this.appendLog(this.t('log.settingsSaved'));
-      }
-    } catch (error) {
-      this.lastError = this.f1('error.saveSettings', 'error', JSON.stringify(error));
-      this.appendLog(this.lastError);
-    }
-  }
-
-  private async changeLanguage(language: AppLanguage): Promise<void> {
-    if (this.language === language) {
-      return;
-    }
-    this.language = language;
-    try {
-      const context = getContext(this) as common.Context;
-      const saved = await SettingsStore.save(context, this.buildSettingsFromState());
-      this.applySettings(saved);
-      const label = this.language === 'zh' ? this.t('settings.language.zh') : this.t('settings.language.en');
-      this.appendLog(this.f1('log.languageChanged', 'language', label));
-    } catch (error) {
-      this.lastError = this.f1('error.saveSettings', 'error', JSON.stringify(error));
-      this.appendLog(this.lastError);
-    }
-  }
-
-  private buildSettingsFromState(): AppSettings {
-    return {
-      language: this.language,
-      sniffingEnabled: this.settingSniffing,
-      routeOnlyEnabled: this.settingRouteOnly,
-      perAppProxyEnabled: this.settingPerAppProxy,
-      localDnsEnabled: this.settingLocalDns,
-      fakeDnsEnabled: this.settingFakeDns,
-      appendHttpProxy: DEFAULT_APP_SETTINGS.appendHttpProxy,
-      muxEnabled: this.settingMux,
-      muxConcurrency: DEFAULT_APP_SETTINGS.muxConcurrency,
-      muxXudpConcurrency: DEFAULT_APP_SETTINGS.muxXudpConcurrency,
-      muxXudpQuic: DEFAULT_APP_SETTINGS.muxXudpQuic,
-      fragmentEnabled: this.settingFragment,
-      fragmentPackets: DEFAULT_APP_SETTINGS.fragmentPackets,
-      fragmentLength: DEFAULT_APP_SETTINGS.fragmentLength,
-      fragmentInterval: DEFAULT_APP_SETTINGS.fragmentInterval,
-      preferIpv6: DEFAULT_APP_SETTINGS.preferIpv6,
-      proxySharingEnabled: this.settingProxySharing,
-      allowInsecure: this.settingAllowInsecure,
-      socksPort: this.parsePortSetting(this.settingSocksPort, DEFAULT_APP_SETTINGS.socksPort),
-      localDnsPort: DEFAULT_APP_SETTINGS.localDnsPort,
-      vpnDns: this.settingVpnDns.trim(),
-      remoteDns: this.settingRemoteDns.trim(),
-      domesticDns: this.settingDomesticDns.trim(),
-      dnsHosts: DEFAULT_APP_SETTINGS.dnsHosts,
-      delayTestUrl: this.settingDelayTestUrl.trim(),
-      logLevel: this.settingLogLevel.trim().length > 0 ? this.settingLogLevel.trim() : DEFAULT_APP_SETTINGS.logLevel,
-      mode: DEFAULT_APP_SETTINGS.mode,
-      trafficMode: this.trafficMode,
-      routingDomainStrategy: this.routingStrategy
-    };
-  }
-
-  private parsePortSetting(value: string, fallback: number): number {
-    const parsed = Number(value);
-    if (Number.isNaN(parsed) || parsed < 1 || parsed > 65535 || Math.floor(parsed) !== parsed) {
-      return fallback;
-    }
-    return parsed;
-  }
-
-  private refreshLocalizedStateText(): void {
-    this.profileUpdatedAt = this.profileSavedText(this.profileUpdatedAtValue);
-    if (!this.subscriptionUpdating) {
-      this.subscriptionMessage = this.subscriptionStatusText(this.subscriptionUpdatedAt);
-    }
-    this.validateConfig();
-  }
-
-  private profileSavedText(updatedAt: number): string {
-    return localizedProfileSavedText(this.language, updatedAt);
-  }
-
-  private subscriptionStatusText(updatedAt: number): string {
-    return localizedSubscriptionStatusText(this.language, updatedAt);
+  private statusLabel(): string {
+    return SHARED_RUNTIME_CONTROLLER.statusLabel(this.language);
   }
 
   private localizeCoreMessage(message: string): string {
     return localizeCoreMessage(this.language, message);
-  }
-
-  private statusLabel(): string {
-    return localizedConnectionStatus(this.language, this.status);
   }
 
   private t(key: string): string {
@@ -1431,14 +619,6 @@ struct Index {
     return formatTwo(this.language, key, name1, value1, name2, value2);
   }
 
-  private statusColor(): string {
-    return connectionStatusColor(this.status);
-  }
-
-  private statusBackground(): string {
-    return connectionStatusBackground(this.status);
-  }
-
   private isRunning(): boolean {
     return this.status === ConnectionStatus.RUNNING;
   }
@@ -1446,5 +626,4 @@ struct Index {
   private isBusy(): boolean {
     return this.status === ConnectionStatus.STARTING || this.status === ConnectionStatus.STOPPING;
   }
-
 }

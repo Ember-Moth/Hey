@@ -25,7 +25,9 @@ export struct ServerNodeCard {
   delayColor: string = '#6B7280';
   currentLabel: string = '';
   useLabel: string = '';
+  openLabel: string = '';
   onSelect: ProxyNodeHandler = (_node: ProxyNode) => {};
+  onOpen: ProxyNodeHandler = (_node: ProxyNode) => {};
 
   build() {
     Row({ space: 10 }) {
@@ -47,6 +49,19 @@ export struct ServerNodeCard {
         .fontColor(this.delayColor)
         .width(84)
         .textAlign(TextAlign.Center)
+
+      if (this.openLabel.length > 0) {
+        Button(this.openLabel)
+          .height(34)
+          .width(68)
+          .fontSize(12)
+          .backgroundColor('#F3F4F6')
+          .fontColor('#374151')
+          .borderRadius(6)
+          .onClick(() => {
+            this.onOpen(this.node);
+          })
+      }
 
       Button(this.isSelected ? this.currentLabel : this.useLabel)
         .height(34)

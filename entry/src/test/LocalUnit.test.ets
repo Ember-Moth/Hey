@@ -1,8 +1,9 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
-import { AppSettings } from '../main/ets/core/Profile';
+import { AppSettings, ProxyNode } from '../main/ets/core/Profile';
 import { buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateOutboundJson } from '../main/ets/core/XrayConfig';
 import { parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
+import { dedupeNodes, exportNodesText, filterNodes, findInvalidNodes, sortNodes } from '../main/ets/features/nodes/NodeOperations';
 import { SubscriptionManager } from '../main/ets/services/SubscriptionManager';
 import { formatBytes, formatDuration } from '../main/ets/utils/Formatters';
 import { formatOne, localizedProfileSavedText, localizeCoreMessage } from '../main/ets/utils/LocalizationPresenter';
@@ -102,6 +103,43 @@ export default function localUnitTest() {
       expect(formatDuration(65)).assertEqual('01:05');
     });
 
+    it('filters nodes by name protocol and source', 0, () => {
+      const nodes = buildNodeFixture();
+      expect(filterNodes(nodes, 'alpha').length).assertEqual(1);
+      expect(filterNodes(nodes, 'trojan').length).assertEqual(1);
+      expect(filterNodes(nodes, 'manual').length).assertEqual(1);
+    });
+
+    it('sorts nodes by delay name and protocol', 0, () => {
+      const nodes = buildNodeFixture();
+      expect(sortNodes(nodes, 'delay')[0].name).assertEqual('Alpha');
+      expect(sortNodes(nodes, 'name')[0].name).assertEqual('Alpha');
+      expect(sortNodes(nodes, 'protocol')[0].protocol).assertEqual('trojan');
+    });
+
+    it('dedupes nodes by raw link and normalized outbound json', 0, () => {
+      const nodes = buildNodeFixture();
+      const duplicateRaw: ProxyNode = copyNode(nodes[0], 'raw-duplicate');
+      duplicateRaw.rawLink = nodes[0].rawLink;
+      const duplicateJson: ProxyNode = copyNode(nodes[2], 'json-duplicate');
+      duplicateJson.rawLink = '';
+      duplicateJson.outboundJson = nodes[2].outboundJson;
+      const result = dedupeNodes(nodes.concat([duplicateRaw, duplicateJson]));
+      expect(result.length).assertEqual(nodes.length);
+    });
+
+    it('finds invalid nodes and exports raw links or outbound json', 0, () => {
+      const nodes = buildNodeFixture();
+      const invalid = copyNode(nodes[0], 'invalid');
+      invalid.rawLink = '';
+      invalid.outboundJson = '{';
+      expect(findInvalidNodes(nodes.concat([invalid])).length).assertEqual(1);
+
+      const exported = exportNodesText(nodes);
+      expect(exported).assertContain('vless://');
+      expect(exported).assertContain('"protocol": "vless"');
+    });
+
     it('imports vless reality share link as outbound json', 0, () => {
       const link = 'vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.example.com&fp=chrome&pbk=test-public-key&sid=abcd&type=tcp#demo';
       const imported = parseShareLinkToOutboundJson(link);
@@ -172,4 +210,59 @@ export default function localUnitTest() {
       expect(nodes[1].outboundJson).assertContain('"protocol": "trojan"');
     });
   });
+}
+
+function buildNodeFixture(): Array<ProxyNode> {
+  const first: ProxyNode = {
+    id: 'node-alpha',
+    name: 'Alpha',
+    protocol: 'vless',
+    outboundJson: VLESS_REALITY_OUTBOUND,
+    sourceUrl: 'https://sub.example/list',
+    rawLink: 'vless://alpha@example.com:443#alpha',
+    updatedAt: 1,
+    delayMs: 120,
+    delayTestAt: 1,
+    delayStatus: 'ok'
+  };
+  const second: ProxyNode = {
+    id: 'node-beta',
+    name: 'Beta',
+    protocol: 'trojan',
+    outboundJson: VLESS_REALITY_OUTBOUND,
+    sourceUrl: 'https://sub.example/list',
+    rawLink: 'trojan://secret@example.com:443#beta',
+    updatedAt: 1,
+    delayMs: -1,
+    delayTestAt: 1,
+    delayStatus: 'failed'
+  };
+  const manual: ProxyNode = {
+    id: 'node-manual',
+    name: 'Manual',
+    protocol: 'vless',
+    outboundJson: VLESS_REALITY_OUTBOUND,
+    sourceUrl: '',
+    rawLink: '',
+    updatedAt: 1,
+    delayMs: -1,
+    delayTestAt: 0,
+    delayStatus: ''
+  };
+  return [second, manual, first];
+}
+
+function copyNode(node: ProxyNode, id: string): ProxyNode {
+  return {
+    id,
+    name: node.name,
+    protocol: node.protocol,
+    outboundJson: node.outboundJson,
+    sourceUrl: node.sourceUrl,
+    rawLink: node.rawLink,
+    updatedAt: node.updatedAt,
+    delayMs: node.delayMs,
+    delayTestAt: node.delayTestAt,
+    delayStatus: node.delayStatus
+  };
 }

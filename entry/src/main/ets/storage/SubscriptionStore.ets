@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { ProxyNode, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
+import { normalizeOutboundInput } from '../core/XrayConfig';
 
 const PREFERENCES_NAME: string = 'hey_vpn_subscription';
 const SUBSCRIPTION_KEY: string = 'subscription_profile';
@@ -71,6 +72,67 @@ export class SubscriptionStore {
       }
     }
     await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    return SubscriptionStore.load(context);
+  }
+
+  static async saveActiveGroupNodes(context: common.Context, nodes: Array<ProxyNode>, selectedNodeId: string): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    const group = SubscriptionStore.activeGroup(profile);
+    if (group !== null) {
+      group.nodes = SubscriptionStore.normalizeNodes(nodes);
+      group.selectedNodeId = SubscriptionStore.resolveSelectedNodeId(group.nodes, selectedNodeId);
+      group.updatedAt = Date.now();
+      await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    }
+    return SubscriptionStore.load(context);
+  }
+
+  static async removeNode(context: common.Context, nodeId: string): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    const group = SubscriptionStore.activeGroup(profile);
+    if (group !== null) {
+      const nodes = new Array<ProxyNode>();
+      for (let index = 0; index < group.nodes.length; index++) {
+        if (group.nodes[index].id !== nodeId) {
+          nodes.push(group.nodes[index]);
+        }
+      }
+      group.nodes = nodes;
+      group.selectedNodeId = SubscriptionStore.resolveSelectedNodeId(nodes, group.selectedNodeId);
+      group.updatedAt = Date.now();
+      await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    }
+    return SubscriptionStore.load(context);
+  }
+
+  static async removeInvalidNodes(context: common.Context): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    const group = SubscriptionStore.activeGroup(profile);
+    if (group !== null) {
+      const nodes = new Array<ProxyNode>();
+      for (let index = 0; index < group.nodes.length; index++) {
+        const node = group.nodes[index];
+        if (normalizeOutboundInput(node.outboundJson).valid) {
+          nodes.push(node);
+        }
+      }
+      group.nodes = nodes;
+      group.selectedNodeId = SubscriptionStore.resolveSelectedNodeId(nodes, group.selectedNodeId);
+      group.updatedAt = Date.now();
+      await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    }
+    return SubscriptionStore.load(context);
+  }
+
+  static async dedupeActiveGroupNodes(context: common.Context): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    const group = SubscriptionStore.activeGroup(profile);
+    if (group !== null) {
+      group.nodes = SubscriptionStore.dedupeNodes(group.nodes);
+      group.selectedNodeId = SubscriptionStore.resolveSelectedNodeId(group.nodes, group.selectedNodeId);
+      group.updatedAt = Date.now();
+      await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    }
     return SubscriptionStore.load(context);
   }
 
@@ -257,6 +319,42 @@ export class SubscriptionStore {
       }
     }
     return null;
+  }
+
+  private static resolveSelectedNodeId(nodes: Array<ProxyNode>, selectedNodeId: string): string {
+    if (SubscriptionStore.findNode(nodes, selectedNodeId) !== null) {
+      return selectedNodeId;
+    }
+    return nodes.length > 0 ? nodes[0].id : '';
+  }
+
+  private static dedupeNodes(nodes: Array<ProxyNode>): Array<ProxyNode> {
+    const seen = new Set<string>();
+    const result = new Array<ProxyNode>();
+    for (let index = 0; index < nodes.length; index++) {
+      const node = nodes[index];
+      const key = SubscriptionStore.nodeDedupeKey(node);
+      if (key.length > 0 && seen.has(key)) {
+        continue;
+      }
+      if (key.length > 0) {
+        seen.add(key);
+      }
+      result.push(node);
+    }
+    return result;
+  }
+
+  private static nodeDedupeKey(node: ProxyNode): string {
+    const rawLink = node.rawLink.trim();
+    if (rawLink.length > 0) {
+      return `raw:${rawLink}`;
+    }
+    const validation = normalizeOutboundInput(node.outboundJson);
+    if (validation.valid) {
+      return `json:${validation.normalizedJson}`;
+    }
+    return `json:${node.outboundJson.trim()}`;
   }
 
   private static createGroup(url: string, name: string): SubscriptionGroup {

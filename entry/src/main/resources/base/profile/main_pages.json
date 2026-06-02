@@ -1,5 +1,16 @@
 {
   "src": [
-    "pages/Index"
+    "pages/Index",
+    "pages/NodeDetail",
+    "pages/Import",
+    "pages/Subscriptions",
+    "pages/Routing",
+    "pages/Settings",
+    "pages/PerApp",
+    "pages/Assets",
+    "pages/Logs",
+    "pages/Scanner",
+    "pages/About",
+    "pages/Export"
   ]
 }
