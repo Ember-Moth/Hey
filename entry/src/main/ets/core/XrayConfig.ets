@@ -73,6 +73,7 @@ const SUPPORTED_PROTOCOLS: Array<string> = ['vless', 'vmess', 'trojan', 'shadows
 
 export const DEFAULT_SOCKS_HOST: string = '127.0.0.1';
 export const DEFAULT_SOCKS_PORT: number = 10808;
+export const DELAY_TEST_SOCKS_PORT: number = 10825;
 const DEFAULT_LOG_LEVEL: string = 'warning';
 const DEFAULT_ROUTING_DOMAIN_STRATEGY: string = 'AsIs';
 
@@ -237,6 +238,54 @@ function buildXrayConfigInternal(outboundJson: string, socksPort: number, settin
 
   return {
     configJson: JSON.stringify(config, null, 2),
+    socksHost: DEFAULT_SOCKS_HOST,
+    socksPort
+  };
+}
+
+export function buildDelayTestConfig(outboundJson: string, socksPort: number = DELAY_TEST_SOCKS_PORT): GeneratedXrayConfig {
+  const validation = validateOutboundJson(outboundJson);
+  if (!validation.valid) {
+    throw new Error(validation.message);
+  }
+
+  const outbound = parseOutbound(validation.normalizedJson);
+  if (outbound.tag === undefined || outbound.tag.length === 0) {
+    outbound.tag = 'proxy';
+  }
+
+  const socksInbound: XrayInboundConfig = {
+    tag: 'socks-in',
+    listen: DEFAULT_SOCKS_HOST,
+    port: socksPort,
+    protocol: 'socks',
+    settings: new SocksInboundSettings()
+  };
+  const directOutbound: XrayOutbound = {
+    tag: 'direct',
+    protocol: 'freedom',
+    settings: new EmptySettings()
+  };
+  const blockOutbound: XrayOutbound = {
+    tag: 'block',
+    protocol: 'blackhole',
+    settings: new EmptySettings()
+  };
+
+  const config: XrayFullConfig = {
+    log: {
+      loglevel: 'none'
+    },
+    inbounds: [socksInbound],
+    outbounds: [outbound, directOutbound, blockOutbound],
+    routing: {
+      domainStrategy: 'AsIs',
+      rules: []
+    }
+  };
+
+  return {
+    configJson: JSON.stringify(config),
     socksHost: DEFAULT_SOCKS_HOST,
     socksPort
   };

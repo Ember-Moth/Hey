@@ -4,6 +4,8 @@
     "pages/NodeDetail",
     "pages/Import",
     "pages/Subscriptions",
+    "pages/SubscriptionDetail",
+    "pages/SubscriptionEdit",
     "pages/Routing",
     "pages/Settings",
     "pages/PerApp",

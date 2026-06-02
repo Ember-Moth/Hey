@@ -18,10 +18,11 @@ target_link_libraries(heyvpn PUBLIC
 
 add_custom_command(TARGET heyvpn POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E remove -f
-    "$<TARGET_FILE_DIR:heyvpn>/libxray.so"
-    "$<TARGET_FILE_DIR:heyvpn>/libheytun2socks.so")
+    "$<TARGET_FILE_DIR:heyvpn>/libheytun2socks.so"
+    "$<TARGET_FILE_DIR:heyvpn>/libheyxrayexec.so"
+    "$<TARGET_FILE_DIR:heyvpn>/libheytun2socksexec.so")
 
-foreach(PREBUILT_LIB libheyxrayexec.so libheytun2socksexec.so)
+foreach(PREBUILT_LIB libxray.so)
     if(EXISTS "${HEYVPN_PREBUILT_DIR}/${PREBUILT_LIB}")
         add_custom_command(TARGET heyvpn POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different

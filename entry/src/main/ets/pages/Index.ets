@@ -1,20 +1,19 @@
 import { common } from '@kit.AbilityKit';
-import { router } from '@kit.ArkUI';
-import { SelectionButton } from '../components/SelectionButton';
+import { router, promptAction } from '@kit.ArkUI';
+import { pasteboard } from '@kit.BasicServicesKit';
+import { IconButton } from '../components/IconButton';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage, AppSettings, ConnectionStatus, ProxyNode, RuntimeStats, SubscriptionGroup } from '../core/Profile';
 import { DelayTester, DelayTestResult } from '../services/DelayTester';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
 import { DEFAULT_APP_SETTINGS } from '../storage/SettingsStore';
-import { NodeSortKey, filterAndSortNodes, findInvalidNodes } from '../features/nodes/NodeOperations';
+import { filterNodes, findInvalidNodes, exportNodesText } from '../features/nodes/NodeOperations';
 import { NODES_CONTROLLER, NodesControllerState, SaveProfileResult } from '../features/nodes/NodesController';
 import { ServerNodeCard } from '../features/servers/ServerCard';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { RuntimeViewState, SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { SUBSCRIPTIONS_CONTROLLER, SubscriptionsControllerState } from '../features/subscriptions/SubscriptionsController';
-import { AppRoute, HOME_ROUTE_ENTRIES, RouteEntry } from '../shell/AppRoute';
-import { PageHeader } from '../shell/PageHeader';
-import { formatBytes } from '../utils/Formatters';
+import { AppRoute } from '../shell/AppRoute';
 import { formatOne, formatTwo, localizeCoreMessage } from '../utils/LocalizationPresenter';
 
 const EMPTY_STATS: RuntimeStats = {
@@ -31,6 +30,7 @@ struct Index {
   private timerId: number = -1;
   private currentSettings: AppSettings = DEFAULT_APP_SETTINGS;
 
+  @State private showSideBar: boolean = false;
   @State private language: AppLanguage = DEFAULT_LANGUAGE;
   @State private outboundJson: string = '';
   @State private validationMessage: string = translate(DEFAULT_LANGUAGE, 'validation.initial');
@@ -46,10 +46,10 @@ struct Index {
   @State private subscriptionGroups: Array<SubscriptionGroup> = [];
   @State private selectedGroupId: string = '';
   @State private searchQuery: string = '';
-  @State private sortKey: NodeSortKey = 'delay';
   @State private subscriptionUpdating: boolean = false;
   @State private delayTesting: boolean = false;
   @State private status: ConnectionStatus = ConnectionStatus.IDLE;
+  @State private connectionOperationRunning: boolean = false;
   @State private elapsedText: string = '00:00';
   @State private stats: RuntimeStats = EMPTY_STATS;
 
@@ -70,265 +70,262 @@ struct Index {
   }
 
   build() {
-    Column() {
-      PageHeader({
-        title: this.t('screen.servers.title'),
-        summary: this.f2('topbar.summary', 'nodes', this.nodes.length.toString(), 'status', this.statusLabel()),
-        showBack: false,
-        statusLabel: this.statusLabel(),
-        statusColor: SHARED_RUNTIME_CONTROLLER.statusColor(),
-        statusBackground: SHARED_RUNTIME_CONTROLLER.statusBackground()
-      })
-
-      Scroll() {
-        Column({ space: 14 }) {
-          this.ConnectionControls()
-          this.NodeToolbar()
+    Stack({ alignContent: Alignment.TopStart }) {
+      Stack({ alignContent: Alignment.BottomEnd }) {
+        Column() {
+          this.HomeHeader()
+          this.GroupTabs()
 
           if (this.lastError.length > 0) {
             Text(this.lastError)
-              .fontSize(12)
+              .fontSize(13)
               .fontColor('#B42318')
               .width('100%')
-              .padding(10)
+              .padding({ left: 24, right: 24, top: 12, bottom: 12 })
               .backgroundColor('#FEF3F2')
-              .borderRadius(6)
           }
 
-          this.NodeList()
-          this.RouteList()
+          Scroll() {
+            this.NodeList()
+          }
+          .layoutWeight(1)
+          .width('100%')
+
+          this.BottomStatusBar()
         }
+        .height('100%')
         .width('100%')
-        .padding({ left: 14, right: 14, top: 14, bottom: 24 })
+
+        this.ConnectionFab()
       }
-      .layoutWeight(1)
+      .height('100%')
       .width('100%')
+      .backgroundColor('#FFFFFF')
+
+      if (this.showSideBar) {
+        Column() {}
+          .width('100%')
+          .height('100%')
+          .backgroundColor('#66000000')
+          .transition({ opacity: 0 })
+          .onClick(() => {
+            animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
+              this.showSideBar = false;
+            })
+          })
+      }
+
+      Column() {
+        this.DrawerContent()
+      }
+      .width(280)
+      .height('100%')
+      .backgroundColor('#FFFFFF')
+      .position({ x: 0, y: 0 })
+      .translate({ x: this.showSideBar ? 0 : -280 })
+      .animation({ duration: 250, curve: Curve.EaseOut })
+      .shadow({ radius: 12, color: '#33000000' })
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F6F8FA')
   }
 
   @Builder
-  private ConnectionControls() {
-    Column({ space: 8 }) {
-      Row({ space: 8 }) {
-        Button(this.isRunning() ? this.t('action.stop') : this.t('action.start'))
-          .height(42)
-          .layoutWeight(1)
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .enabled(!this.isBusy())
-          .backgroundColor(this.isRunning() ? '#B42318' : '#166534')
-          .fontColor('#FFFFFF')
-          .borderRadius(8)
-          .onClick(() => {
-            if (this.isRunning()) {
-              this.stopConnection();
-            } else {
-              this.startConnection();
-            }
+  private HomeHeader() {
+    Row({ space: 18 }) {
+      IconButton({
+        icon: $r('app.media.ic_menu'),
+        buttonSize: 56,
+        iconSize: 32,
+        iconColor: '#49454F',
+        onAction: () => {
+          animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
+            this.showSideBar = true;
           })
-        Button(this.t('action.restart'))
-          .height(42)
-          .width(92)
-          .fontSize(13)
-          .enabled(!this.isBusy())
-          .backgroundColor('#1D4ED8')
-          .fontColor('#FFFFFF')
-          .borderRadius(8)
-          .onClick(async () => {
-            await this.stopConnection();
-            await this.startConnection();
-          })
-      }
-      .width('100%')
+        }
+      })
 
-      Row({ space: 8 }) {
-        Text(`${this.elapsedText}  ${formatBytes(this.stats.uploadBytes)} / ${formatBytes(this.stats.downloadBytes)}`)
-          .fontSize(12)
-          .fontColor('#6B7280')
-          .layoutWeight(1)
-        Text(this.localizeCoreMessage(this.stats.lastMessage))
-          .fontSize(12)
-          .fontColor('#374151')
-          .layoutWeight(1)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text(this.t('screen.servers.title'))
+        .fontSize(28)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#1C1B1F')
+        .layoutWeight(1)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+      Column() {
+        Image($r('app.media.ic_more_vert'))
+          .width(30)
+          .height(30)
+          .fillColor('#49454F')
       }
-      .width('100%')
+      .width(56)
+      .height(56)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+      .borderRadius(28)
+      .bindMenu(this.MoreMenuBuilder())
     }
     .width('100%')
+    .height(92)
+    .padding({ left: 8, right: 10, top: 14 })
+    .backgroundColor('#FFFFFF')
   }
 
   @Builder
-  private NodeToolbar() {
-    Column({ space: 8 }) {
-      Row({ space: 8 }) {
-        TextInput({ placeholder: this.t('action.search'), text: this.searchQuery })
-          .height(38)
-          .layoutWeight(1)
-          .fontSize(13)
-          .backgroundColor('#FFFFFF')
-          .borderRadius(6)
-          .onChange((value: string) => {
-            this.searchQuery = value;
-          })
-        Button(this.t('action.add'))
-          .height(38)
-          .width(68)
-          .fontSize(13)
-          .backgroundColor('#E5E7EB')
-          .fontColor('#374151')
-          .borderRadius(6)
-          .onClick(() => {
-            this.openRoute(AppRoute.IMPORT);
-          })
-        Button(this.t('action.export'))
-          .height(38)
-          .width(76)
-          .fontSize(13)
-          .backgroundColor('#E5E7EB')
-          .fontColor('#374151')
-          .borderRadius(6)
-          .onClick(() => {
-            this.openRoute(AppRoute.EXPORT);
-          })
+  private GroupTabs() {
+    Column() {
+      Scroll() {
+        Row({ space: 28 }) {
+          this.DefaultGroupTab()
+          ForEach(this.subscriptionGroups, (group: SubscriptionGroup) => {
+            this.GroupTab(group)
+          }, (group: SubscriptionGroup, index: number) => `${index}-${group.id}`)
+        }
+        .padding({ left: 24, right: 24 })
+        .height(56)
       }
       .width('100%')
-
-      Row({ space: 8 }) {
-        this.SortButton('delay', this.t('sort.delay'))
-        this.SortButton('name', this.t('sort.name'))
-        this.SortButton('protocol', this.t('sort.protocol'))
-      }
-      .width('100%')
-
-      Row({ space: 8 }) {
-        Button(this.t('action.subUpdate'))
-          .height(34)
-          .layoutWeight(1)
-          .fontSize(12)
-          .enabled(!this.subscriptionUpdating && !this.isBusy())
-          .backgroundColor('#EEF2FF')
-          .fontColor('#3730A3')
-          .borderRadius(6)
-          .onClick(() => {
-            this.updateSubscription();
-          })
-        Button(this.delayTesting ? this.t('node.delay.testing') : this.t('action.pingAll'))
-          .height(34)
-          .layoutWeight(1)
-          .fontSize(12)
-          .enabled(!this.delayTesting && !this.isBusy())
-          .backgroundColor('#F3F4F6')
-          .fontColor('#374151')
-          .borderRadius(6)
-          .onClick(() => {
-            this.testVisibleNodeDelay();
-          })
-      }
-      .width('100%')
-
-      Row({ space: 8 }) {
-        Button(this.t('action.dedupe'))
-          .height(34)
-          .layoutWeight(1)
-          .fontSize(12)
-          .backgroundColor('#F3F4F6')
-          .fontColor('#374151')
-          .borderRadius(6)
-          .onClick(() => {
-            this.dedupeNodes();
-          })
-        Button(this.t('action.removeInvalid'))
-          .height(34)
-          .layoutWeight(1)
-          .fontSize(12)
-          .backgroundColor('#F3F4F6')
-          .fontColor('#374151')
-          .borderRadius(6)
-          .onClick(() => {
-            this.removeInvalidNodes();
-          })
-      }
-      .width('100%')
+      .height(56)
+      .scrollable(ScrollDirection.Horizontal)
+      .scrollBar(BarState.Off)
+      Divider()
+        .strokeWidth(1)
+        .color('#E0E0E0')
     }
     .width('100%')
+    .backgroundColor('#FFFFFF')
   }
 
   @Builder
-  private SortButton(value: NodeSortKey, label: string) {
-    SelectionButton({
-      label,
-      itemValue: value,
-      isSelected: this.sortKey === value,
-      labelSize: 12,
-      onSelect: (nextValue: string) => {
-        this.sortKey = nextValue as NodeSortKey;
+  private DefaultGroupTab() {
+    Column({ space: 8 }) {
+      Blank()
+        .layoutWeight(1)
+      Text('Default')
+        .fontSize(17)
+        .fontWeight(this.selectedGroupId.length === 0 ? FontWeight.Medium : FontWeight.Regular)
+        .fontColor(this.selectedGroupId.length === 0 ? '#1C1B1F' : '#49454F')
+      Divider()
+        .strokeWidth(4)
+        .color(this.selectedGroupId.length === 0 ? '#1C1B1F' : '#00000000')
+        .width('100%')
+        .borderRadius(2)
+    }
+    .height(56)
+    .width(72)
+    .onClick(() => {
+      this.openRoute(AppRoute.SUBSCRIPTIONS);
+    })
+  }
+
+  @Builder
+  private GroupTab(group: SubscriptionGroup) {
+    Column({ space: 8 }) {
+      Blank()
+        .layoutWeight(1)
+      Text(group.name.length > 0 ? group.name : 'Default')
+        .fontSize(17)
+        .fontWeight(group.id === this.selectedGroupId ? FontWeight.Medium : FontWeight.Regular)
+        .fontColor(group.id === this.selectedGroupId ? '#1C1B1F' : '#49454F')
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Divider()
+        .strokeWidth(4)
+        .color(group.id === this.selectedGroupId ? '#1C1B1F' : '#00000000')
+        .width('100%')
+        .borderRadius(2)
+    }
+    .height(56)
+    .width(168)
+    .onClick(() => {
+      this.selectSubscriptionGroup(group);
+    })
+  }
+
+  @Builder
+  private ConnectionFab() {
+    Button() {
+      Image(this.isRunning() ? $r('app.media.ic_stop') : $r('app.media.ic_play_arrow'))
+        .width(30)
+        .height(30)
+        .fillColor('#FFFFFF')
+    }
+    .width(72)
+    .height(72)
+    .enabled(!this.isBusy())
+    .backgroundColor(this.isRunning() ? '#F97910' : '#9C9C9C')
+    .borderRadius(20)
+    .shadow({ radius: 16, color: '#33000000', offsetX: 0, offsetY: 6 })
+    .margin({ right: 30, bottom: 92 })
+    .onClick(() => {
+      if (this.isRunning()) {
+        this.stopConnection();
+      } else {
+        this.startConnection();
       }
     })
   }
 
   @Builder
-  private NodeList() {
-    Column({ space: 8 }) {
-      ForEach(this.visibleNodes(), (node: ProxyNode) => {
-        ServerNodeCard({
-          node,
-          isSelected: node.id === this.selectedNodeId,
-          isBusy: this.isBusy(),
-          sourceLabel: node.sourceUrl.length > 0 ? this.t('node.source.subscription') : this.t('node.source.manual'),
-          delayText: this.nodeDelayText(node),
-          delayColor: this.nodeDelayColor(node),
-          currentLabel: this.t('action.current'),
-          useLabel: this.t('action.use'),
-          openLabel: this.t('action.detail'),
-          onSelect: (selectedNode: ProxyNode) => {
-            this.selectNode(selectedNode);
-          },
-          onOpen: (openedNode: ProxyNode) => {
-            this.openNodeDetail(openedNode);
-          }
-        })
-      }, (node: ProxyNode) => node.id)
+  private BottomStatusBar() {
+    Column() {
+      Divider()
+        .strokeWidth(1)
+        .color('#E0E0E0')
+      Row() {
+        Text(this.bottomStatusText())
+          .fontSize(17)
+          .fontColor('#49454F')
+          .layoutWeight(1)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .width('100%')
+      .height(64)
+      .padding({ left: 24, right: 120 })
     }
     .width('100%')
+    .backgroundColor('#FFFFFF')
   }
 
   @Builder
-  private RouteList() {
-    Column({ space: 8 }) {
-      ForEach(HOME_ROUTE_ENTRIES, (entry: RouteEntry) => {
-        Row({ space: 10 }) {
-          Column({ space: 4 }) {
-            Text(this.t(entry.titleKey))
-              .fontSize(14)
-              .fontWeight(FontWeight.Medium)
-              .fontColor('#111827')
-            Text(this.t(entry.labelKey))
-              .fontSize(12)
-              .fontColor('#6B7280')
-          }
-          .layoutWeight(1)
-          Button(this.t('action.open'))
-            .height(32)
-            .width(68)
-            .fontSize(12)
-            .backgroundColor('#E5E7EB')
-            .fontColor('#374151')
-            .borderRadius(6)
-            .onClick(() => {
-              this.openRoute(entry.route);
-            })
-        }
-        .width('100%')
-        .padding(12)
-        .backgroundColor('#FFFFFF')
-        .borderRadius(8)
-      }, (entry: RouteEntry) => entry.route)
+  private NodeList() {
+    Column({ space: 0 }) {
+      if (this.visibleNodes().length === 0) {
+        Blank()
+          .width('100%')
+          .height(680)
+      } else {
+        ForEach(this.visibleNodes(), (node: ProxyNode) => {
+          ServerNodeCard({
+            node,
+            isSelected: node.id === this.selectedNodeId,
+            isBusy: this.isBusy(),
+            sourceLabel: this.nodeEndpointText(node),
+            delayText: this.nodeDelayText(node),
+            delayColor: this.nodeDelayColor(node),
+            currentLabel: this.t('action.current'),
+            useLabel: this.t('action.use'),
+            openLabel: this.t('action.detail'),
+            onSelect: (selectedNode: ProxyNode) => {
+              this.selectNode(selectedNode);
+            },
+            onShare: (sharedNode: ProxyNode) => {
+              this.shareNode(sharedNode);
+            },
+            onOpen: (openedNode: ProxyNode) => {
+              this.openNodeDetail(openedNode);
+            },
+            onDelete: (deletedNode: ProxyNode) => {
+              this.removeNode(deletedNode);
+            }
+          })
+        }, (node: ProxyNode, index: number) => `${index}-${node.id}`)
+      }
     }
     .width('100%')
+    .backgroundColor('#FFFFFF')
   }
 
   private async loadInitialState(): Promise<void> {
@@ -359,29 +356,67 @@ struct Index {
   }
 
   private async startConnection(): Promise<void> {
+    if (this.isBusy()) {
+      promptAction.showToast({ message: this.t('home.busy') });
+      return;
+    }
+
+    this.connectionOperationRunning = true;
+    try {
+      await this.startConnectionInternal();
+    } finally {
+      this.connectionOperationRunning = false;
+    }
+  }
+
+  private async startConnectionInternal(): Promise<boolean> {
     const context = getContext(this) as common.Context;
     const saved = await NODES_CONTROLLER.saveProfile(context, this.outboundJson, this.language);
     this.applySaveProfileResult(saved);
     if (saved.profile === null) {
       SHARED_RUNTIME_CONTROLLER.appendLog(saved.lastError);
-      return;
+      return false;
     }
 
     try {
-      this.applyRuntimeState(await SHARED_RUNTIME_CONTROLLER.start(context, saved.profile, this.currentSettings, this.language));
+      this.status = ConnectionStatus.STARTING;
+      const state = await SHARED_RUNTIME_CONTROLLER.start(context, saved.profile, this.currentSettings, this.language);
+      this.applyRuntimeState(state);
+      return state.status === ConnectionStatus.RUNNING;
     } catch (error) {
+      this.status = ConnectionStatus.ERROR;
       this.lastError = this.f1('vpn.startFailed', 'error', JSON.stringify(error));
       SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
+      return false;
     }
   }
 
   private async stopConnection(): Promise<void> {
+    if (this.isBusy()) {
+      promptAction.showToast({ message: this.t('home.busy') });
+      return;
+    }
+
+    this.connectionOperationRunning = true;
+    try {
+      await this.stopConnectionInternal();
+    } finally {
+      this.connectionOperationRunning = false;
+    }
+  }
+
+  private async stopConnectionInternal(): Promise<boolean> {
     try {
       const context = getContext(this) as common.Context;
-      this.applyRuntimeState(await SHARED_RUNTIME_CONTROLLER.stop(context, this.language));
+      this.status = ConnectionStatus.STOPPING;
+      const state = await SHARED_RUNTIME_CONTROLLER.stop(context, this.language);
+      this.applyRuntimeState(state);
+      return state.status === ConnectionStatus.IDLE;
     } catch (error) {
+      this.status = ConnectionStatus.ERROR;
       this.lastError = this.f1('vpn.stopFailed', 'error', JSON.stringify(error));
       SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
+      return false;
     }
   }
 
@@ -404,11 +439,56 @@ struct Index {
   }
 
   private async selectNode(node: ProxyNode): Promise<void> {
+    if (this.isBusy()) {
+      promptAction.showToast({ message: this.t('home.busy') });
+      return;
+    }
     const context = getContext(this) as common.Context;
-    const state = await NODES_CONTROLLER.selectNode(context, node, this.language);
+    const shouldSwitchConnection = this.isRunning() && node.id !== this.selectedNodeId;
+    this.selectedNodeId = node.id;
+    this.outboundJson = node.outboundJson;
+
+    if (shouldSwitchConnection) {
+      this.connectionOperationRunning = true;
+    }
+
+    try {
+      const state = await NODES_CONTROLLER.selectNode(context, node, this.language);
+      this.applyNodesState(state);
+      const message = state.lastError.length > 0 ? state.lastError : this.f1('log.selectedNode', 'name', node.name);
+      SHARED_RUNTIME_CONTROLLER.appendLog(message);
+
+      if (shouldSwitchConnection && state.lastError.length === 0) {
+        SHARED_RUNTIME_CONTROLLER.appendLog('检测到服务运行中，准备切换节点并重新连接...');
+        const stopped = await this.stopConnectionInternal();
+        if (stopped) {
+          await this.startConnectionInternal();
+        }
+      }
+    } finally {
+      if (shouldSwitchConnection) {
+        this.connectionOperationRunning = false;
+      }
+    }
+  }
+
+  private async shareNode(node: ProxyNode): Promise<void> {
+    await this.selectNode(node);
+    this.openRoute(AppRoute.EXPORT);
+  }
+
+  private async removeNode(node: ProxyNode): Promise<void> {
+    const context = getContext(this) as common.Context;
+    const state = await NODES_CONTROLLER.removeNode(context, node.id, this.language);
     this.applyNodesState(state);
-    const message = state.lastError.length > 0 ? state.lastError : this.f1('log.selectedNode', 'name', node.name);
-    SHARED_RUNTIME_CONTROLLER.appendLog(message);
+    SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.nodeRemoved', 'name', node.name));
+  }
+
+  private async selectSubscriptionGroup(group: SubscriptionGroup): Promise<void> {
+    const context = getContext(this) as common.Context;
+    const state = await SUBSCRIPTIONS_CONTROLLER.selectGroup(context, group, this.language);
+    this.applySubscriptionsState(state);
+    SHARED_RUNTIME_CONTROLLER.appendLog(state.subscriptionMessage);
   }
 
   private async dedupeNodes(): Promise<void> {
@@ -444,7 +524,7 @@ struct Index {
         const startedAt = Date.now();
         this.markNodeDelay(node.id, -1, 'testing', startedAt);
         SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.delayTestingNode', 'name', node.name));
-        const result: DelayTestResult = await DelayTester.measure(this.currentSettings.delayTestUrl, 8000);
+        const result: DelayTestResult = await this.measureNodeTcpDelay(node, 8000);
         const delayMs = result.ok ? result.delayMs : -1;
         const status = result.ok ? 'ok' : result.status;
         const subscription = await SubscriptionStore.saveNodeDelay(context, node.id, delayMs, status, Date.now());
@@ -465,6 +545,19 @@ struct Index {
     } finally {
       this.delayTesting = false;
     }
+  }
+
+  private async measureNodeTcpDelay(node: ProxyNode, timeoutMs: number): Promise<DelayTestResult> {
+    const address = this.findJsonString(node.outboundJson, 'address');
+    const portText = this.findJsonNumber(node.outboundJson, 'port');
+    const port = Number(portText);
+    return DelayTester.measureTcp(address, port, timeoutMs);
+  }
+
+  private showRealConnectionTestUnavailable(): void {
+    const message = this.t('prompt.nativeDelayUnavailable');
+    promptAction.showToast({ message });
+    SHARED_RUNTIME_CONTROLLER.appendLog(message);
   }
 
   private markNodeDelay(nodeId: string, delayMs: number, delayStatus: string, delayTestAt: number): void {
@@ -545,7 +638,83 @@ struct Index {
   }
 
   private visibleNodes(): Array<ProxyNode> {
-    return filterAndSortNodes(this.nodes, this.searchQuery, this.sortKey);
+    return filterNodes(this.nodes, this.searchQuery);
+  }
+
+  private bottomStatusText(): string {
+    if (this.isBusy()) {
+      return this.t('home.busy');
+    }
+    if (this.isRunning()) {
+      return this.t('home.connectedTest');
+    }
+    return this.t('home.disconnected');
+  }
+
+  private nodeEndpointText(node: ProxyNode): string {
+    const address = this.findJsonString(node.outboundJson, 'address');
+    const port = this.findJsonNumber(node.outboundJson, 'port');
+    if (address.length > 0 && port.length > 0) {
+      return `${address}:${port}`;
+    }
+    return node.sourceUrl.length > 0 ? this.t('node.source.subscription') : this.t('node.source.manual');
+  }
+
+  private findJsonString(value: string, key: string): string {
+    const start = this.findJsonPropertyValueStart(value, key);
+    if (start < 0) {
+      return '';
+    }
+    let contentStart = start;
+    while (contentStart < value.length && this.isJsonWhitespace(value.charAt(contentStart))) {
+      contentStart++;
+    }
+    if (contentStart >= value.length || value.charAt(contentStart) !== '"') {
+      return '';
+    }
+    contentStart++;
+    const contentEnd = value.indexOf('"', contentStart);
+    if (contentEnd < contentStart) {
+      return '';
+    }
+    return value.substring(contentStart, contentEnd);
+  }
+
+  private findJsonNumber(value: string, key: string): string {
+    const start = this.findJsonPropertyValueStart(value, key);
+    if (start < 0) {
+      return '';
+    }
+    let contentStart = start;
+    while (contentStart < value.length && this.isJsonWhitespace(value.charAt(contentStart))) {
+      contentStart++;
+    }
+    let contentEnd = contentStart;
+    while (contentEnd < value.length && this.isJsonNumberChar(value.charAt(contentEnd))) {
+      contentEnd++;
+    }
+    if (contentEnd <= contentStart) {
+      return '';
+    }
+    return value.substring(contentStart, contentEnd);
+  }
+
+  private findJsonPropertyValueStart(value: string, key: string): number {
+    const property = `"${key}"`;
+    const propertyStart = value.indexOf(property);
+    if (propertyStart < 0) {
+      return -1;
+    }
+    const colon = value.indexOf(':', propertyStart + property.length);
+    return colon < 0 ? -1 : colon + 1;
+  }
+
+  private isJsonWhitespace(value: string): boolean {
+    return value === ' ' || value === '\n' || value === '\r' || value === '\t';
+  }
+
+  private isJsonNumberChar(value: string): boolean {
+    return value >= '0' && value <= '9';
   }
 
   private openRoute(route: AppRoute): void {
@@ -624,6 +793,249 @@ struct Index {
   }
 
   private isBusy(): boolean {
-    return this.status === ConnectionStatus.STARTING || this.status === ConnectionStatus.STOPPING;
+    return this.connectionOperationRunning || this.status === ConnectionStatus.STARTING || this.status === ConnectionStatus.STOPPING;
+  }
+
+  @Builder
+  private MoreMenuBuilder() {
+    Menu() {
+      MenuItem({ content: this.t('menu.serviceRestart') })
+        .onClick(() => {
+          this.reconnectService();
+        })
+      MenuItem({ content: this.t('menu.deleteConfig') })
+        .onClick(() => {
+          this.deleteCurrentConfig();
+        })
+      MenuItem({ content: this.t('menu.deleteDuplicate') })
+        .onClick(() => {
+          this.dedupeNodes();
+        })
+      MenuItem({ content: this.t('menu.deleteInvalid') })
+        .onClick(() => {
+          this.removeInvalidNodes();
+        })
+      MenuItem({ content: this.t('menu.exportClipboard') })
+        .onClick(() => {
+          this.exportAllNodesToClipboard();
+        })
+      MenuItem({ content: this.t('menu.testTcping') })
+        .onClick(() => {
+          this.testVisibleNodeDelay();
+        })
+      MenuItem({ content: this.t('menu.testRealConnection') })
+        .onClick(() => {
+          this.showRealConnectionTestUnavailable();
+        })
+      MenuItem({ content: this.t('menu.locateSelected') })
+        .onClick(() => {
+          this.locateSelectedConfig();
+        })
+      MenuItem({ content: this.t('menu.updateSubscription') })
+        .onClick(() => {
+          this.updateSubscription();
+        })
+    }
+  }
+
+  private async reconnectService(): Promise<void> {
+    if (this.isBusy()) {
+      promptAction.showToast({ message: this.t('home.busy') });
+      return;
+    }
+
+    this.connectionOperationRunning = true;
+    try {
+      if (this.isRunning()) {
+        SHARED_RUNTIME_CONTROLLER.appendLog('正在重启服务...');
+        const stopped = await this.stopConnectionInternal();
+        if (stopped) {
+          await this.startConnectionInternal();
+        }
+      } else {
+        await this.startConnectionInternal();
+      }
+    } finally {
+      this.connectionOperationRunning = false;
+    }
+  }
+
+  private async deleteCurrentConfig(): Promise<void> {
+    if (this.selectedNodeId.length === 0) {
+      promptAction.showToast({ message: this.t('prompt.noNodeToDelete') });
+      return;
+    }
+    let targetNode: ProxyNode | null = null;
+    for (let i = 0; i < this.nodes.length; i++) {
+      if (this.nodes[i].id === this.selectedNodeId) {
+        targetNode = this.nodes[i];
+        break;
+      }
+    }
+    if (targetNode !== null) {
+      await this.removeNode(targetNode);
+      promptAction.showToast({ message: '配置已删除' });
+    }
+  }
+
+  private async exportAllNodesToClipboard(): Promise<void> {
+    const targets = this.visibleNodes();
+    if (targets.length === 0) {
+      promptAction.showToast({ message: this.t('export.empty') });
+      return;
+    }
+    const text = exportNodesText(targets);
+    try {
+      const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
+      const systemPasteboard = pasteboard.getSystemPasteboard();
+      await systemPasteboard.setData(pasteData);
+      promptAction.showToast({ message: this.t('prompt.copiedToClipboard') });
+      SHARED_RUNTIME_CONTROLLER.appendLog(`已成功导出 ${targets.length} 个节点至剪贴板。`);
+    } catch (error) {
+      promptAction.showToast({ message: '导出剪贴板失败：' + JSON.stringify(error) });
+      SHARED_RUNTIME_CONTROLLER.appendLog('导出剪贴板失败：' + JSON.stringify(error));
+    }
+  }
+
+  private locateSelectedConfig(): void {
+    if (this.selectedNodeId.length === 0) {
+      promptAction.showToast({ message: '当前未选中任何配置' });
+      return;
+    }
+    let foundNode: ProxyNode | null = null;
+    for (let i = 0; i < this.nodes.length; i++) {
+      if (this.nodes[i].id === this.selectedNodeId) {
+        foundNode = this.nodes[i];
+        break;
+      }
+    }
+    if (foundNode !== null) {
+      const msg = this.f1('prompt.locatedNode', 'name', foundNode.name);
+      promptAction.showToast({ message: msg });
+      SHARED_RUNTIME_CONTROLLER.appendLog(msg);
+    }
+  }
+
+  private findSelectedNodeName(): string {
+    for (let i = 0; i < this.nodes.length; i++) {
+      if (this.nodes[i].id === this.selectedNodeId) {
+        return this.nodes[i].name;
+      }
+    }
+    return '未选择';
+  }
+
+  @Builder
+  private DrawerContent() {
+    Column() {
+      Column({ space: 8 }) {
+        Text('Hey VPN')
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#FFFFFF')
+        
+        Text(this.isRunning() ? '服务正在运行' : '服务未连接')
+          .fontSize(14)
+          .fontColor('#FFEBE0')
+
+        if (this.selectedNodeId.length > 0) {
+          Text('当前节点: ' + this.findSelectedNodeName())
+            .fontSize(12)
+            .fontColor('#FFEBE0')
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+      }
+      .width('100%')
+      .padding({ left: 24, right: 24, top: 48, bottom: 24 })
+      .linearGradient({
+        angle: 135,
+        colors: [['#FF8F3D', 0.0], ['#F97910', 1.0]]
+      })
+
+      Scroll() {
+        Column({ space: 4 }) {
+          this.DrawerMenuItem('首页节点', $r('app.media.ic_menu'), () => {
+            animateTo({ duration: 200, curve: Curve.EaseOut }, () => {
+              this.showSideBar = false;
+            })
+          }, true)
+
+          Divider().color('#F3F4F6').strokeWidth(1).margin({ top: 4, bottom: 4 })
+
+          this.DrawerMenuItem('添加配置', $r('app.media.ic_add'), () => {
+            this.clickDrawerItem(AppRoute.IMPORT);
+          })
+          
+          this.DrawerMenuItem('订阅分组', $r('app.media.ic_subscriptions'), () => {
+            this.clickDrawerItem(AppRoute.SUBSCRIPTIONS);
+          })
+
+          this.DrawerMenuItem('路由设置', $r('app.media.ic_route'), () => {
+            this.clickDrawerItem(AppRoute.ROUTING);
+          })
+
+          this.DrawerMenuItem('分应用代理', $r('app.media.ic_apps'), () => {
+            this.clickDrawerItem(AppRoute.PER_APP);
+          })
+
+          this.DrawerMenuItem('资源文件', $r('app.media.ic_folder'), () => {
+            this.clickDrawerItem(AppRoute.ASSETS);
+          })
+
+          this.DrawerMenuItem('系统日志', $r('app.media.ic_info'), () => {
+            this.clickDrawerItem(AppRoute.LOGS);
+          })
+
+          this.DrawerMenuItem('扫描二维码', $r('app.media.ic_qr_code'), () => {
+            this.clickDrawerItem(AppRoute.SCANNER);
+          })
+
+          this.DrawerMenuItem('设置偏好', $r('app.media.ic_settings'), () => {
+            this.clickDrawerItem(AppRoute.SETTINGS);
+          })
+
+          this.DrawerMenuItem('关于应用', $r('app.media.ic_info'), () => {
+            this.clickDrawerItem(AppRoute.ABOUT);
+          })
+        }
+        .width('100%')
+        .padding({ left: 12, right: 12, top: 16, bottom: 24 })
+      }
+      .layoutWeight(1)
+      .width('100%')
+    }
+    .width('100%')
+    .height('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  private DrawerMenuItem(title: string, icon: Resource, onClick: () => void, isSelected: boolean = false) {
+    Row({ space: 16 }) {
+      Image(icon)
+        .width(22)
+        .height(22)
+        .fillColor(isSelected ? '#F97910' : '#49454F')
+      Text(title)
+        .fontSize(15)
+        .fontWeight(isSelected ? FontWeight.Medium : FontWeight.Regular)
+        .fontColor(isSelected ? '#F97910' : '#1C1B1F')
+    }
+    .width('100%')
+    .height(48)
+    .padding({ left: 16, right: 16 })
+    .borderRadius(8)
+    .backgroundColor(isSelected ? '#FFF7ED' : '#00000000')
+    .onClick(() => {
+      onClick();
+    })
+  }
+
+  private clickDrawerItem(route: AppRoute) {
+    animateTo({ duration: 150, curve: Curve.EaseOut }, () => {
+      this.showSideBar = false;
+    })
+    this.openRoute(route);
   }
 }

@@ -150,6 +150,7 @@ struct NodeDetailPage {
     if (this.node.id.length === 0) {
       return;
     }
+    this.selectedNodeId = this.node.id;
     const context = getContext(this) as common.Context;
     const state = await NODES_CONTROLLER.selectNode(context, this.node, this.language);
     this.selectedNodeId = state.selectedNodeId;

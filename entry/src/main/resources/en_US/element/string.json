@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "Hey VPN module"
+      "value": "Hey module"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "Hey VPN main screen"
+      "value": "Hey main screen"
     },
     {
       "name": "EntryAbility_label",
-      "value": "Hey VPN"
+      "value": "Hey"
     }
   ]
 }

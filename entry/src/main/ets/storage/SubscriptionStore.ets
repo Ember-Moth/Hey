@@ -189,6 +189,27 @@ export class SubscriptionStore {
     return SubscriptionStore.load(context);
   }
 
+  static async addGroup(context: common.Context, name: string, url: string): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    const group = SubscriptionStore.createGroup(url, name);
+    profile.groups.push(group);
+    profile.selectedGroupId = group.id;
+    await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    return SubscriptionStore.load(context);
+  }
+
+  static async updateGroup(context: common.Context, groupId: string, name: string, url: string): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    const group = SubscriptionStore.findGroup(profile.groups, groupId);
+    if (group !== null) {
+      group.name = name;
+      group.url = url;
+      group.updatedAt = Date.now();
+      await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    }
+    return SubscriptionStore.load(context);
+  }
+
   private static async save(context: common.Context, profile: SubscriptionProfile): Promise<void> {
     const store = await preferences.getPreferences(context, PREFERENCES_NAME);
     await store.put(SUBSCRIPTION_KEY, JSON.stringify(profile));
@@ -244,23 +265,26 @@ export class SubscriptionStore {
 
   private static normalizeGroup(group: SubscriptionGroup, index: number): SubscriptionGroup {
     const url = group.url ?? '';
+    const nodes = SubscriptionStore.normalizeNodes(group.nodes ?? []);
     return {
       id: group.id ?? SubscriptionStore.makeGroupId(`${url}-${index}`),
       name: group.name ?? SubscriptionStore.nameFromUrl(url),
       url,
       enabled: group.enabled ?? true,
-      selectedNodeId: group.selectedNodeId ?? '',
-      nodes: SubscriptionStore.normalizeNodes(group.nodes ?? []),
+      selectedNodeId: SubscriptionStore.resolveSelectedNodeId(nodes, group.selectedNodeId ?? ''),
+      nodes,
       updatedAt: group.updatedAt ?? 0
     };
   }
 
   private static normalizeNodes(nodes: Array<ProxyNode>): Array<ProxyNode> {
     const normalized = new Array<ProxyNode>();
+    const idCounts = new Map<string, number>();
     for (let index = 0; index < nodes.length; index++) {
       const node = nodes[index];
+      const id = SubscriptionStore.uniqueNodeId(node.id ?? '', index, idCounts);
       normalized.push({
-        id: node.id ?? '',
+        id,
         name: node.name ?? '',
         protocol: node.protocol ?? '',
         outboundJson: node.outboundJson ?? '',
@@ -273,6 +297,16 @@ export class SubscriptionStore {
       });
     }
     return normalized;
+  }
+
+  private static uniqueNodeId(rawId: string, index: number, idCounts: Map<string, number>): string {
+    const baseId = rawId.length > 0 ? rawId : `node-${index}`;
+    const count = idCounts.get(baseId) ?? 0;
+    idCounts.set(baseId, count + 1);
+    if (count === 0) {
+      return baseId;
+    }
+    return `${baseId}-${count + 1}`;
   }
 
   private static mergeNodeRuntime(existing: Array<ProxyNode>, next: Array<ProxyNode>): Array<ProxyNode> {

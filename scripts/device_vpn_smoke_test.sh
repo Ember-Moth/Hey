@@ -21,7 +21,7 @@ require_hdc() {
 case "${1:-}" in
   build)
     DEVECO_SDK_HOME="${DEVECO_SDK_HOME}" "${HVIGOR}" assembleApp --no-daemon --stacktrace
-    unzip -l "${HAP}" | awk '/libhey.*\.so/ { print }'
+    unzip -l "${HAP}" | awk '/libs\/arm64-v8a\/(libhey|libxray).*\.so/ { print }'
     ;;
   install)
     require_hdc

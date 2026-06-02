@@ -29,7 +29,7 @@ struct AboutPage {
       })
       Scroll() {
         Column({ space: 10 }) {
-          SectionHeader({ title: 'Hey VPN', detail: this.t('about.section.detail') })
+          SectionHeader({ title: 'Hey', detail: this.t('about.section.detail') })
           this.RowItem(this.t('about.source.title'), this.t('about.source.detail'))
           this.RowItem(this.t('about.core.title'), this.t('about.core.detail'))
           this.RowItem(this.t('about.license.title'), this.t('about.license.detail'))

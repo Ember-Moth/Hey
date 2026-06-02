@@ -1,5 +1,8 @@
 import { ProxyNode, SubscriptionGroup } from '../../core/Profile';
+import { IconButton } from '../../components/IconButton';
 import { SubscriptionGroupListRow, SubscriptionNodeListRow } from './SubscriptionRows';
+import { pasteboard } from '@kit.BasicServicesKit';
+import { promptAction } from '@kit.ArkUI';
 
 export interface SubscriptionGroupRowModel {
   group: SubscriptionGroup;
@@ -24,10 +27,10 @@ export struct SubscriptionManagerPanel {
   title: string = '';
   summary: string = '';
   urlPlaceholder: string = '';
-  urlValue: string = '';
+  @Prop urlValue: string = '';
   saveGroupLabel: string = '';
   updateLabel: string = '';
-  message: string = '';
+  @Prop @Watch('onMessageChange') message: string = '';
   isBusy: boolean = false;
   isUpdating: boolean = false;
   groupRows: Array<SubscriptionGroupRowModel> = [];
@@ -46,67 +49,227 @@ export struct SubscriptionManagerPanel {
   onToggleGroup: SubscriptionGroupActionHandler = (_group: SubscriptionGroup) => {};
   onDeleteGroup: SubscriptionGroupActionHandler = (_group: SubscriptionGroup) => {};
   onSelectNode: SubscriptionNodeActionHandler = (_node: ProxyNode) => {};
+  onScanQr: SubscriptionActionHandler = () => {};
+
+  @State private showCard: boolean = false;
+  @State private cardType: 'success' | 'error' | 'info' = 'info';
+  private timerId: number = -1;
+
+  aboutToDisappear(): void {
+    if (this.timerId !== -1) {
+      clearTimeout(this.timerId);
+    }
+  }
+
+  onMessageChange() {
+    if (!this.message || this.message.trim().length === 0) {
+      this.showCard = false;
+      return;
+    }
+    
+    // 如果是正在更新的过渡提示，不以卡片形式打扰用户
+    if (this.message.includes('正在') || this.message.includes('Updating') || this.message.includes('updating')) {
+      this.showCard = false;
+      return;
+    }
+
+    this.showCard = true;
+    if (this.message.includes('失败') || this.message.includes('Failed') || this.message.includes('错误') || this.message.includes('error')) {
+      this.cardType = 'error';
+    } else if (this.message.includes('成功') || this.message.includes('Success') || this.message.includes('完成') || this.message.includes('Complete') || this.message.includes('保存')) {
+      this.cardType = 'success';
+    } else {
+      this.cardType = 'info';
+    }
+
+    if (this.timerId !== -1) {
+      clearTimeout(this.timerId);
+    }
+    this.timerId = setTimeout(() => {
+      this.showCard = false;
+      this.timerId = -1;
+    }, 4000);
+  }
+
+  private isButtonEnabled(): boolean {
+    return this.urlValue.trim().length > 0 && !this.isUpdating && !this.isBusy;
+  }
+
+  private async pasteFromClipboard() {
+    try {
+      const systemPasteboard = pasteboard.getSystemPasteboard();
+      if (systemPasteboard.hasDataSync()) {
+        const pasteData = await systemPasteboard.getData();
+        const text = pasteData.getPrimaryText();
+        if (text && text.trim().length > 0) {
+          this.onUrlChange(text.trim());
+          promptAction.showToast({ message: '已粘贴订阅链接' });
+        } else {
+          promptAction.showToast({ message: '剪贴板未发现有效链接' });
+        }
+      } else {
+        promptAction.showToast({ message: '剪贴板为空' });
+      }
+    } catch (error) {
+      promptAction.showToast({ message: '无法读取剪贴板' });
+    }
+  }
 
   build() {
-    Column({ space: 12 }) {
+    Column({ space: 16 }) {
       Row() {
-        Text(this.title)
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#111827')
-          .layoutWeight(1)
-        Text(this.summary)
-          .fontSize(12)
-          .fontColor('#6B7280')
+        Column({ space: 4 }) {
+          Text(this.title)
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#111827')
+          Text(this.summary)
+            .fontSize(12)
+            .fontColor('#6B7280')
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
       }
       .width('100%')
 
-      TextArea({
-        placeholder: this.urlPlaceholder,
-        text: this.urlValue
-      })
-        .height(56)
-        .fontSize(13)
-        .fontColor('#111827')
-        .placeholderColor('#9CA3AF')
-        .backgroundColor('#F9FAFB')
-        .borderRadius(6)
-        .border({ width: 1, color: '#E5E7EB' })
-        .padding(10)
-        .onChange((value: string) => {
-          this.onUrlChange(value);
+      // 精美输入框设计，集成一键粘贴、一键清除、扫码
+      Row() {
+        Image($r('app.media.ic_link'))
+          .width(20)
+          .height(20)
+          .fillColor('#6B7280')
+          .margin({ left: 12, right: 8 })
+
+        TextInput({
+          placeholder: this.urlPlaceholder,
+          text: this.urlValue
+        })
+          .layoutWeight(1)
+          .height(44)
+          .fontSize(14)
+          .fontColor('#111827')
+          .placeholderColor('#9CA3AF')
+          .backgroundColor('#00000000')
+          .onChange((value: string) => {
+            this.onUrlChange(value);
+          })
+
+        if (this.urlValue.length > 0) {
+          Button() {
+            Text('✕')
+              .fontSize(14)
+              .fontColor('#9CA3AF')
+              .fontWeight(FontWeight.Bold)
+          }
+          .backgroundColor('#00000000')
+          .width(36)
+          .height(36)
+          .onClick(() => {
+            this.onUrlChange('');
+          })
+        }
+
+        Button() {
+          Image($r('app.media.ic_article'))
+            .width(20)
+            .height(20)
+            .fillColor('#6B7280')
+        }
+        .backgroundColor('#00000000')
+        .width(36)
+        .height(36)
+        .onClick(() => {
+          this.pasteFromClipboard();
         })
 
-      Row({ space: 8 }) {
-        Button(this.saveGroupLabel)
-          .height(38)
-          .width(116)
-          .fontSize(14)
-          .enabled(!this.isUpdating && !this.isBusy)
-          .backgroundColor('#E5E7EB')
-          .fontColor('#374151')
-          .borderRadius(8)
-          .onClick(() => {
-            this.onSaveGroup();
-          })
-        Button(this.updateLabel)
-          .height(38)
-          .width(96)
-          .fontSize(14)
-          .enabled(!this.isUpdating && !this.isBusy)
-          .backgroundColor('#1D4ED8')
-          .fontColor('#FFFFFF')
-          .borderRadius(8)
-          .onClick(() => {
-            this.onUpdate();
-          })
-        Text(this.message)
-          .fontSize(13)
-          .fontColor('#374151')
-          .layoutWeight(1)
+        Button() {
+          Image($r('app.media.ic_qr_code'))
+            .width(20)
+            .height(20)
+            .fillColor('#6B7280')
+        }
+        .backgroundColor('#00000000')
+        .width(36)
+        .height(36)
+        .margin({ right: 6 })
+        .onClick(() => {
+          this.onScanQr();
+        })
       }
       .width('100%')
+      .height(48)
+      .backgroundColor('#F9FAFB')
+      .borderRadius(12)
+      .border({ width: 1, color: '#E5E7EB' })
       .alignItems(VerticalAlign.Center)
+
+      // 合并为一键获取并更新按钮，具有加载状态
+      Button() {
+        Row({ space: 8 }) {
+          if (this.isUpdating) {
+            LoadingProgress()
+              .width(20)
+              .height(20)
+              .color('#FFFFFF')
+          }
+          Text(this.isUpdating ? '正在获取并更新节点...' : '获取并更新节点')
+            .fontSize(15)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.isButtonEnabled() ? '#FFFFFF' : '#9CA3AF')
+        }
+      }
+      .width('100%')
+      .height(44)
+      .borderRadius(12)
+      .enabled(this.isButtonEnabled())
+      .opacity(this.isButtonEnabled() ? 1.0 : 0.65)
+      .linearGradient(this.isButtonEnabled() ? {
+        angle: 90,
+        colors: [['#FF8F3D', 0.0], ['#F97910', 1.0]]
+      } : {
+        angle: 90,
+        colors: [['#E5E7EB', 0.0], ['#E5E7EB', 1.0]]
+      })
+      .shadow(this.isButtonEnabled() ? { radius: 8, color: '#33F97910', offsetX: 0, offsetY: 4 } : undefined)
+      .onClick(() => {
+        this.onUpdate();
+      })
+
+      // 成功/失败状态反馈卡片
+      if (this.showCard) {
+        Row({ space: 10 }) {
+          Image(this.cardType === 'success' ? $r('app.media.ic_check') : $r('app.media.ic_info'))
+            .width(18)
+            .height(18)
+            .fillColor(this.cardType === 'success' ? '#2E7D32' : this.cardType === 'error' ? '#C62828' : '#1565C0')
+
+          Text(this.message)
+            .fontSize(13)
+            .fontColor(this.cardType === 'success' ? '#2E7D32' : this.cardType === 'error' ? '#C62828' : '#1565C0')
+            .layoutWeight(1)
+
+          Button() {
+            Text('✕')
+              .fontSize(12)
+              .fontColor(this.cardType === 'success' ? '#2E7D32' : this.cardType === 'error' ? '#C62828' : '#1565C0')
+              .fontWeight(FontWeight.Bold)
+          }
+          .backgroundColor('#00000000')
+          .width(28)
+          .height(28)
+          .onClick(() => {
+            this.showCard = false;
+          })
+        }
+        .width('100%')
+        .padding({ left: 12, right: 8, top: 10, bottom: 10 })
+        .borderRadius(10)
+        .backgroundColor(this.cardType === 'success' ? '#E8F5E9' : this.cardType === 'error' ? '#FFEBEE' : '#E3F2FD')
+        .border({
+          width: 1,
+          color: this.cardType === 'success' ? '#A5D6A7' : this.cardType === 'error' ? '#EF9A9A' : '#90CAF9'
+        })
+      }
 
       if (this.groupRows.length > 0) {
         Column({ space: 8 }) {
@@ -124,7 +287,7 @@ export struct SubscriptionManagerPanel {
               onToggle: this.onToggleGroup,
               onDelete: this.onDeleteGroup
             })
-          }, (row: SubscriptionGroupRowModel) => row.group.id)
+          }, (row: SubscriptionGroupRowModel, index: number) => `${index}-${row.group.id}`)
         }
         .width('100%')
       }
@@ -142,7 +305,7 @@ export struct SubscriptionManagerPanel {
               useLabel: this.useLabel,
               onSelect: this.onSelectNode
             })
-          }, (row: SubscriptionNodeRowModel) => row.node.id)
+          }, (row: SubscriptionNodeRowModel, index: number) => `${index}-${row.node.id}`)
         }
         .width('100%')
       }
@@ -150,6 +313,7 @@ export struct SubscriptionManagerPanel {
     .width('100%')
     .padding(16)
     .backgroundColor('#FFFFFF')
-    .borderRadius(8)
+    .borderRadius(12)
+    .shadow({ radius: 10, color: '#0A000000', offsetX: 0, offsetY: 2 })
   }
 }

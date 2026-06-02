@@ -3,6 +3,8 @@ export enum AppRoute {
   NODE_DETAIL = 'pages/NodeDetail',
   IMPORT = 'pages/Import',
   SUBSCRIPTIONS = 'pages/Subscriptions',
+  SUBSCRIPTION_DETAIL = 'pages/SubscriptionDetail',
+  SUBSCRIPTION_EDIT = 'pages/SubscriptionEdit',
   ROUTING = 'pages/Routing',
   SETTINGS = 'pages/Settings',
   PER_APP = 'pages/PerApp',

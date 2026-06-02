@@ -19,7 +19,7 @@ export struct SelectionButton {
       .fontSize(this.labelSize)
       .backgroundColor(this.isSelected ? this.activeBackground : this.inactiveBackground)
       .fontColor(this.isSelected ? this.activeTextColor : this.inactiveTextColor)
-      .borderRadius(6)
+      .borderRadius(17)
       .onClick(() => {
         this.onSelect(this.itemValue);
       })

@@ -12,7 +12,7 @@ XML layouts, drawable assets, launcher artwork, strings, or package branding.
 | Add config menu | Add | Present. Imports share links, outbound JSON, or subscription URL; protocol tabs are scaffolded. |
 | ScannerActivity / ScScannerActivity | Scan | Present. Paste/import path is wired; camera QR capture still pending. |
 | SubSettingActivity / SubEditActivity | Subs | Multi-group model present. Save/update/select/enable-disable/delete are wired; dedicated edit form and reorder pending. |
-| ServerActivity protocol editors | Add | Scaffolded for VLESS, VMess, Shadowsocks, SOCKS, HTTP, Trojan, WireGuard, Hysteria2. Field-level editors pending. |
+| ServerActivity protocol editors | Add | Partial. Field-level editor is present for VLESS/VMess/Trojan/Shadowsocks/SOCKS/HTTP (generates outbound JSON into import buffer). WireGuard/Hysteria2/TUIC editors still pending. |
 | ServerCustomConfigActivity | Add | Raw outbound JSON import works. Full custom config import pending. |
 | RoutingSettingActivity / RoutingEditActivity | Route | Traffic mode (global/rules/direct) and domain strategy persist and feed generated Xray routing. Full custom ruleset editor pending. |
 | SettingsActivity | Config | Core, VPN DNS, SOCKS port, mux, sniffing, log level and routing strategy persist and feed generated Xray config. Dedicated pickers and full advanced options pending. |
@@ -36,7 +36,7 @@ XML layouts, drawable assets, launcher artwork, strings, or package branding.
 | VMess/VLESS/Trojan/Shadowsocks parsing | Present. |
 | SOCKS/HTTP/WireGuard/Hysteria2 parsing | Present for share-link import and subscription discovery. Runtime connection for WireGuard/Hysteria2 still needs core validation. |
 | TUIC parsing | Pending. |
-| Delay test / real ping / sort by delay | Basic URL delay test is wired and persisted per node. Proxy-outbound-per-node delay and sorting pending. |
+| Delay test / real ping / sort by delay | Present. Per-node real outbound delay via libXray `CGoPing` (own SOCKS test inbound on port 10825), persisted per node, with sort-by-delay. Falls back to direct URL test when the native core is unavailable (e.g. emulator). Needs real-device validation. |
 | Delete all / duplicate / invalid configs | Pending. |
 | Export/share configs and QR generation | Pending. |
 | Multi-subscription groups | Present with legacy single-subscription migration. Rename/reorder and batch update all pending. |

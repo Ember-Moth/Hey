@@ -21,6 +21,12 @@ extern const char *_GoStringPtr(_GoString_ s);
 /* Start of preamble from import "C" comments.  */
 
 
+#line 3 "hey_tun2socks.go"
+
+#include <stdint.h>
+
+#line 1 "cgo-generated-wrapper"
+
 
 
 /* End of preamble from import "C" comments.  */
@@ -82,9 +88,12 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
+extern int HeyTun2SocksStart(int tunFd, char* socksHost, int socksPort, int mtu);
+extern void HeyTun2SocksStop(void);
+extern int64_t HeyTun2SocksUploadBytes(void);
+extern int64_t HeyTun2SocksDownloadBytes(void);
+extern char* HeyTun2SocksLastError(void);
 extern void CGoSetTunFd(int fd);
-extern char* CGoInitDns(char* base64Text);
-extern char* CGoResetDns(void);
 extern char* CGoRunXrayFromJSON(char* base64Text);
 extern char* CGoGetFreePorts(GoInt count);
 extern char* CGoConvertShareLinksToXrayJson(char* base64Text);

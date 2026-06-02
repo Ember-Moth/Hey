@@ -16,32 +16,28 @@ export struct SettingToggleRow {
   onToggle: ToggleSettingHandler = (_action: string) => {};
 
   build() {
-    Row({ space: 10 }) {
+    Row({ space: 14 }) {
       Column({ space: 3 }) {
         Text(this.title)
-          .fontSize(14)
+          .fontSize(16)
           .fontWeight(FontWeight.Medium)
-          .fontColor('#111827')
+          .fontColor('#1C1B1F')
         Text(this.settingKey)
-          .fontSize(12)
-          .fontColor('#6B7280')
+          .fontSize(13)
+          .fontColor('#49454F')
       }
       .layoutWeight(1)
-      Button(this.isEnabled ? this.onLabel : this.offLabel)
-        .height(32)
-        .width(62)
-        .fontSize(12)
-        .backgroundColor(this.isEnabled ? '#166534' : '#E5E7EB')
-        .fontColor(this.isEnabled ? '#FFFFFF' : '#374151')
-        .borderRadius(6)
-        .onClick(() => {
+      Toggle({ type: ToggleType.Switch, isOn: this.isEnabled })
+        .selectedColor('#F97910')
+        .switchPointColor('#FFFFFF')
+        .onChange((_isOn: boolean) => {
           this.onToggle(this.action);
         })
     }
     .width('100%')
-    .padding(12)
+    .height(72)
+    .padding({ left: 24, right: 24, top: 12, bottom: 12 })
     .backgroundColor('#FFFFFF')
-    .borderRadius(8)
   }
 }
 
@@ -55,15 +51,15 @@ export struct LanguageToggleRow {
   onChange: LanguageSelectHandler = (_language: AppLanguage) => {};
 
   build() {
-    Row({ space: 10 }) {
+    Row({ space: 12 }) {
       Column({ space: 3 }) {
         Text(this.title)
-          .fontSize(14)
+          .fontSize(16)
           .fontWeight(FontWeight.Medium)
-          .fontColor('#111827')
+          .fontColor('#1C1B1F')
         Text(this.settingKey)
-          .fontSize(12)
-          .fontColor('#6B7280')
+          .fontSize(13)
+          .fontColor('#49454F')
       }
       .layoutWeight(1)
 
@@ -71,9 +67,9 @@ export struct LanguageToggleRow {
         .height(32)
         .width(96)
         .fontSize(12)
-        .backgroundColor(this.language === 'zh' ? '#111827' : '#E5E7EB')
+        .backgroundColor(this.language === 'zh' ? '#1C1B1F' : '#F2F2F2')
         .fontColor(this.language === 'zh' ? '#FFFFFF' : '#374151')
-        .borderRadius(6)
+        .borderRadius(16)
         .onClick(() => {
           this.onChange('zh');
         })
@@ -81,17 +77,17 @@ export struct LanguageToggleRow {
         .height(32)
         .width(96)
         .fontSize(12)
-        .backgroundColor(this.language === 'en' ? '#111827' : '#E5E7EB')
+        .backgroundColor(this.language === 'en' ? '#1C1B1F' : '#F2F2F2')
         .fontColor(this.language === 'en' ? '#FFFFFF' : '#374151')
-        .borderRadius(6)
+        .borderRadius(16)
         .onClick(() => {
           this.onChange('en');
         })
     }
     .width('100%')
-    .padding(12)
+    .height(72)
+    .padding({ left: 24, right: 24, top: 12, bottom: 12 })
     .backgroundColor('#FFFFFF')
-    .borderRadius(8)
   }
 }
 
@@ -107,28 +103,28 @@ export struct SettingInputRow {
     Column({ space: 8 }) {
       Row() {
         Text(this.title)
-          .fontSize(14)
+          .fontSize(16)
           .fontWeight(FontWeight.Medium)
-          .fontColor('#111827')
+          .fontColor('#1C1B1F')
           .layoutWeight(1)
         Text(this.settingKey)
-          .fontSize(12)
-          .fontColor('#6B7280')
+          .fontSize(13)
+          .fontColor('#49454F')
       }
       .width('100%')
       TextInput({ text: this.value, placeholder: this.title })
-        .height(36)
+        .height(42)
         .width('100%')
-        .fontSize(13)
-        .backgroundColor('#F9FAFB')
-        .borderRadius(6)
+        .fontSize(16)
+        .fontColor('#1C1B1F')
+        .backgroundColor('#FFFFFF')
+        .border({ width: { bottom: 1 }, color: '#6B7280' })
         .onChange((next: string) => {
           this.onChange(this.action, next);
         })
     }
     .width('100%')
-    .padding(12)
+    .padding({ left: 24, right: 24, top: 14, bottom: 14 })
     .backgroundColor('#FFFFFF')
-    .borderRadius(8)
   }
 }

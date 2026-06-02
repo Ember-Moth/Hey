@@ -11,3 +11,5 @@
 **/.test
 /.appanalyzer
 openspec/
+/build-profile.json5
+/docs/tmp/

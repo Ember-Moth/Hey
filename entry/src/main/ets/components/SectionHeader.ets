@@ -6,19 +6,19 @@ export struct SectionHeader {
   build() {
     Row() {
       Text(this.title)
-        .fontSize(17)
+        .fontSize(16)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#111827')
+        .fontColor('#F97910')
         .layoutWeight(1)
-      Text(this.detail)
-        .fontSize(12)
-        .fontColor('#6B7280')
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      if (this.detail.length > 0) {
+        Text(this.detail)
+          .fontSize(12)
+          .fontColor('#49454F')
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 12, bottom: 12 })
-    .backgroundColor('#FFFFFF')
-    .borderRadius(8)
+    .padding({ left: 24, right: 24, top: 22, bottom: 8 })
   }
 }

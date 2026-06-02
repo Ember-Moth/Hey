@@ -62,6 +62,64 @@ export class SubscriptionsController {
     }
   }
 
+  async addGroup(context: common.Context, name: string, url: string, language: AppLanguage): Promise<SubscriptionsControllerState> {
+    const trimmedName = name.trim();
+    const trimmedUrl = url.trim();
+    if (trimmedName.length === 0) {
+      return this.buildState(await SubscriptionStore.load(context), language, '订阅名称不能为空');
+    }
+    try {
+      const subscription = await SubscriptionStore.addGroup(context, trimmedName, trimmedUrl);
+      return this.buildState(subscription, language, translate(language, 'log.subscriptionGroupSaved'));
+    } catch (error) {
+      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.saveSubscriptionGroup', 'error', this.stringifyError(error)));
+    }
+  }
+
+  async updateGroup(context: common.Context, groupId: string, name: string, url: string, language: AppLanguage): Promise<SubscriptionsControllerState> {
+    const trimmedName = name.trim();
+    const trimmedUrl = url.trim();
+    if (trimmedName.length === 0) {
+      return this.buildState(await SubscriptionStore.load(context), language, '订阅名称不能为空');
+    }
+    try {
+      const subscription = await SubscriptionStore.updateGroup(context, groupId, trimmedName, trimmedUrl);
+      return this.buildState(subscription, language, translate(language, 'log.subscriptionGroupSaved'));
+    } catch (error) {
+      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.saveSubscriptionGroup', 'error', this.stringifyError(error)));
+    }
+  }
+
+  async updateAll(context: common.Context, language: AppLanguage): Promise<SubscriptionsControllerState> {
+    let subscription = await SubscriptionStore.load(context);
+    let successCount = 0;
+    let failedCount = 0;
+    
+    for (let index = 0; index < subscription.groups.length; index++) {
+      const group = subscription.groups[index];
+      const url = group.url.trim();
+      if (url.length > 0 && group.enabled) {
+        try {
+          const result = await SubscriptionManager.fetchAndParse(url);
+          if (result.ok) {
+            subscription = await SubscriptionStore.saveNodes(context, url, result.nodes, group.selectedNodeId);
+            successCount++;
+          } else {
+            failedCount++;
+          }
+        } catch (error) {
+          failedCount++;
+        }
+      }
+    }
+    
+    const msg = failedCount === 0 
+      ? `已成功更新 ${successCount} 个订阅分组` 
+      : `更新完成: ${successCount} 个成功, ${failedCount} 个失败`;
+    
+    return this.buildState(subscription, language, msg);
+  }
+
   async selectGroup(context: common.Context, group: SubscriptionGroup, language: AppLanguage): Promise<SubscriptionsControllerState> {
     try {
       const subscription = await SubscriptionStore.selectGroup(context, group.id);

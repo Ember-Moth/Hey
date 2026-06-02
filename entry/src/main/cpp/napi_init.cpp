@@ -1,8 +1,8 @@
 #include "napi/native_api.h"
 
 #include <atomic>
+#include <cctype>
 #include <cerrno>
-#include <csignal>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -10,31 +10,41 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <hilog/log.h>
-#include <spawn.h>
 #include <sstream>
 #include <string>
-#include <sys/stat.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
-
-extern "C" char** environ;
 
 namespace {
 
 constexpr unsigned int LOG_DOMAIN_ID = 0x0001;
 constexpr const char* LOG_TAG_NAME = "HeyNative";
-constexpr const char* XRAY_EXEC_NAME = "libheyxrayexec.so";
-constexpr const char* TUN2SOCKS_EXEC_NAME = "libheytun2socksexec.so";
 constexpr const char* XRAY_CONFIG_FILE = "hey-xray-config.json";
+constexpr const char* XRAY_CORE_LIB = "libxray.so";
+constexpr const char* PING_CONFIG_FILE = "hey-ping-config.json";
+
+using CGoPingFunc = char* (*)(char*);
+using CGoStringFunc = char* (*)(char*);
+using CGoStopFunc = char* (*)();
+using Tun2SocksStartFunc = int (*)(int, char*, int, int);
+using Tun2SocksStopFunc = void (*)();
+using Tun2SocksStatsFunc = int64_t (*)();
+using Tun2SocksLastErrorFunc = char* (*)();
 
 std::atomic_bool g_xrayRunning(false);
 std::atomic_bool g_tunRunning(false);
-std::atomic<int> g_xrayPid(-1);
-std::atomic<int> g_tunPid(-1);
 std::atomic<int64_t> g_uploadBytes(0);
 std::atomic<int64_t> g_downloadBytes(0);
-std::string g_lastMessage = "Native bridge ready. Waiting for executable Xray and tun2socks.";
+std::string g_lastMessage = "Native bridge ready. Waiting for Xray shared library.";
+void* g_xrayHandle = nullptr;
+CGoStringFunc g_runXrayFromJson = nullptr;
+CGoStopFunc g_stopXray = nullptr;
+CGoPingFunc g_pingXray = nullptr;
+Tun2SocksStartFunc g_startTun2Socks = nullptr;
+Tun2SocksStopFunc g_stopTun2Socks = nullptr;
+Tun2SocksStatsFunc g_tun2SocksUploadBytes = nullptr;
+Tun2SocksStatsFunc g_tun2SocksDownloadBytes = nullptr;
+Tun2SocksLastErrorFunc g_tun2SocksLastError = nullptr;
 
 const char* BASE64_TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -81,16 +91,6 @@ std::string ExecPath(const std::string& name)
     return NativeLibDir() + "/" + name;
 }
 
-bool EnsureExecutable(const std::string& path, std::string& message)
-{
-    chmod(path.c_str(), 0755);
-    if (access(path.c_str(), X_OK) == 0) {
-        return true;
-    }
-    message = ErrnoMessage("Executable is not accessible: " + path);
-    return false;
-}
-
 bool WriteTextFile(const std::string& path, const std::string& content, std::string& message)
 {
     FILE* file = std::fopen(path.c_str(), "wb");
@@ -106,69 +106,6 @@ bool WriteTextFile(const std::string& path, const std::string& content, std::str
         return false;
     }
     return true;
-}
-
-bool SpawnProcess(const std::vector<std::string>& args, int& pid, std::string& message)
-{
-    if (args.empty()) {
-        message = "Missing executable path.";
-        return false;
-    }
-
-    std::vector<char*> argv;
-    argv.reserve(args.size() + 1);
-    for (const std::string& arg : args) {
-        argv.push_back(const_cast<char*>(arg.c_str()));
-    }
-    argv.push_back(nullptr);
-
-    pid_t childPid = -1;
-    int result = posix_spawn(&childPid, args[0].c_str(), nullptr, nullptr, argv.data(), environ);
-    if (result != 0) {
-        message = ErrnoMessage("posix_spawn failed for " + args[0], result);
-        return false;
-    }
-
-    pid = static_cast<int>(childPid);
-    return true;
-}
-
-bool ChildSurvivedStartup(int pid, const std::string& name, std::string& message)
-{
-    usleep(250 * 1000);
-    int status = 0;
-    pid_t result = waitpid(static_cast<pid_t>(pid), &status, WNOHANG);
-    if (result == 0) {
-        return true;
-    }
-    if (result == static_cast<pid_t>(pid)) {
-        std::ostringstream output;
-        output << name << " exited during startup, status=" << status;
-        message = output.str();
-        return false;
-    }
-    message = ErrnoMessage("waitpid failed for " + name);
-    return false;
-}
-
-void StopChild(std::atomic<int>& pidStore)
-{
-    int pid = pidStore.exchange(-1);
-    if (pid <= 0) {
-        return;
-    }
-
-    kill(static_cast<pid_t>(pid), SIGTERM);
-    for (int index = 0; index < 20; index++) {
-        int status = 0;
-        pid_t result = waitpid(static_cast<pid_t>(pid), &status, WNOHANG);
-        if (result == static_cast<pid_t>(pid) || (result < 0 && errno == ECHILD)) {
-            return;
-        }
-        usleep(100 * 1000);
-    }
-    kill(static_cast<pid_t>(pid), SIGKILL);
-    waitpid(static_cast<pid_t>(pid), nullptr, 0);
 }
 
 bool MakeFdInheritable(int fd, std::string& message)
@@ -339,10 +276,13 @@ bool ResponseOk(const std::string& base64Response, std::string& message)
     return false;
 }
 
+bool LoadXrayCore(std::string& message);
+bool LoadTun2SocksCore(std::string& message);
+
 bool LoadXray()
 {
     std::string message;
-    bool ok = EnsureExecutable(ExecPath(XRAY_EXEC_NAME), message);
+    bool ok = LoadXrayCore(message);
     if (!ok) {
         g_lastMessage = message;
         LogError(message);
@@ -353,12 +293,192 @@ bool LoadXray()
 bool LoadTun2Socks()
 {
     std::string message;
-    bool ok = EnsureExecutable(ExecPath(TUN2SOCKS_EXEC_NAME), message);
+    bool ok = LoadTun2SocksCore(message);
     if (!ok) {
         g_lastMessage = message;
         LogError(message);
     }
     return ok;
+}
+
+bool LoadXrayCore(std::string& message)
+{
+    if (g_xrayHandle != nullptr && g_runXrayFromJson != nullptr && g_stopXray != nullptr && g_pingXray != nullptr) {
+        return true;
+    }
+
+    void* handle = dlopen(ExecPath(XRAY_CORE_LIB).c_str(), RTLD_LAZY | RTLD_LOCAL);
+    if (handle == nullptr) {
+        handle = dlopen(XRAY_CORE_LIB, RTLD_LAZY | RTLD_LOCAL);
+    }
+    if (handle == nullptr) {
+        const char* error = dlerror();
+        message = std::string("libXray unavailable: failed to load ") + XRAY_CORE_LIB + ": " +
+            (error != nullptr ? error : "unknown error");
+        return false;
+    }
+
+    dlerror();
+    g_runXrayFromJson = reinterpret_cast<CGoStringFunc>(dlsym(handle, "CGoRunXrayFromJSON"));
+    g_stopXray = reinterpret_cast<CGoStopFunc>(dlsym(handle, "CGoStopXray"));
+    g_pingXray = reinterpret_cast<CGoPingFunc>(dlsym(handle, "CGoPing"));
+    if (g_runXrayFromJson == nullptr || g_stopXray == nullptr || g_pingXray == nullptr) {
+        message = "libXray unavailable: required CGo symbols missing.";
+        return false;
+    }
+    g_xrayHandle = handle;
+    return true;
+}
+
+CGoPingFunc LoadCGoPing(std::string& message)
+{
+    if (!LoadXrayCore(message)) {
+        message = "libXray ping unavailable: " + message;
+        return nullptr;
+    }
+    return g_pingXray;
+}
+
+bool LoadTun2SocksCore(std::string& message)
+{
+    if (g_startTun2Socks != nullptr && g_stopTun2Socks != nullptr) {
+        return true;
+    }
+
+    if (!LoadXrayCore(message)) {
+        message = "tun2socks unavailable: " + message;
+        return false;
+    }
+
+    dlerror();
+    g_startTun2Socks = reinterpret_cast<Tun2SocksStartFunc>(dlsym(g_xrayHandle, "HeyTun2SocksStart"));
+    g_stopTun2Socks = reinterpret_cast<Tun2SocksStopFunc>(dlsym(g_xrayHandle, "HeyTun2SocksStop"));
+    g_tun2SocksUploadBytes = reinterpret_cast<Tun2SocksStatsFunc>(dlsym(g_xrayHandle, "HeyTun2SocksUploadBytes"));
+    g_tun2SocksDownloadBytes = reinterpret_cast<Tun2SocksStatsFunc>(dlsym(g_xrayHandle, "HeyTun2SocksDownloadBytes"));
+    g_tun2SocksLastError = reinterpret_cast<Tun2SocksLastErrorFunc>(dlsym(g_xrayHandle, "HeyTun2SocksLastError"));
+    if (g_startTun2Socks == nullptr || g_stopTun2Socks == nullptr) {
+        message = "tun2socks unavailable: combined libxray.so symbols missing.";
+        return false;
+    }
+    return true;
+}
+
+bool ParsePingResponse(const std::string& json, int64_t& delay, std::string& message)
+{
+    delay = -1;
+    bool success = json.find("\"success\":true") != std::string::npos;
+
+    size_t dataKey = json.find("\"data\":");
+    if (dataKey != std::string::npos) {
+        size_t start = dataKey + 7;
+        while (start < json.size() && (json[start] == ' ' || json[start] == '"')) {
+            start++;
+        }
+        size_t end = start;
+        while (end < json.size() && (std::isdigit(static_cast<unsigned char>(json[end])) != 0 || json[end] == '-')) {
+            end++;
+        }
+        if (end > start) {
+            delay = std::strtoll(json.substr(start, end - start).c_str(), nullptr, 10);
+        }
+    }
+
+    if (success && delay >= 0) {
+        message = "libXray ping ok.";
+        return true;
+    }
+
+    size_t errorKey = json.find("\"err\":\"");
+    if (errorKey != std::string::npos) {
+        size_t start = errorKey + 7;
+        size_t end = json.find('"', start);
+        std::string error = json.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        message = error.empty() ? "libXray ping failed." : error;
+    } else {
+        message = success ? "libXray ping returned no delay." : "libXray ping failed.";
+    }
+    return false;
+}
+
+napi_value CreatePingResult(napi_env env, bool ok, int64_t delayMs, const std::string& message)
+{
+    napi_value result = nullptr;
+    napi_create_object(env, &result);
+    napi_set_named_property(env, result, "ok", CreateBool(env, ok));
+    napi_set_named_property(env, result, "delayMs", CreateInt64(env, delayMs));
+    napi_set_named_property(env, result, "message", CreateString(env, message));
+    if (ok) {
+        LogInfo(message);
+    } else {
+        LogWarn(message);
+    }
+    return result;
+}
+
+napi_value PingOutbound(napi_env env, napi_callback_info info)
+{
+    size_t argc = 5;
+    napi_value args[5] = { nullptr };
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (argc < 4) {
+        return CreatePingResult(env, false, -1, "Missing ping arguments.");
+    }
+
+    std::string config = GetStringArg(env, args[0]);
+    std::string datDir = GetStringArg(env, args[1]);
+    std::string url = GetStringArg(env, args[2]);
+    int32_t timeoutSeconds = GetIntArg(env, args[3]);
+    std::string proxy = argc >= 5 ? GetStringArg(env, args[4]) : "socks5://127.0.0.1:10825";
+
+    if (config.empty()) {
+        return CreatePingResult(env, false, -1, "Ping config JSON is empty.");
+    }
+    if (datDir.empty()) {
+        return CreatePingResult(env, false, -1, "Ping requires a data directory.");
+    }
+    if (url.empty()) {
+        return CreatePingResult(env, false, -1, "Ping requires a test URL.");
+    }
+    if (timeoutSeconds <= 0) {
+        timeoutSeconds = 10;
+    }
+
+    std::string message;
+    CGoPingFunc ping = LoadCGoPing(message);
+    if (ping == nullptr) {
+        return CreatePingResult(env, false, -1, message);
+    }
+
+    std::string configPath = datDir + "/" + PING_CONFIG_FILE;
+    if (!WriteTextFile(configPath, config, message)) {
+        return CreatePingResult(env, false, -1, message);
+    }
+
+    std::ostringstream request;
+    request << "{\"datDir\":\"" << JsonEscape(datDir) << "\","
+            << "\"configPath\":\"" << JsonEscape(configPath) << "\","
+            << "\"timeout\":" << timeoutSeconds << ","
+            << "\"url\":\"" << JsonEscape(url) << "\","
+            << "\"proxy\":\"" << JsonEscape(proxy) << "\"}";
+
+    std::string encoded = Base64Encode(request.str());
+    std::vector<char> buffer(encoded.begin(), encoded.end());
+    buffer.push_back('\0');
+
+    char* raw = ping(buffer.data());
+    if (raw == nullptr) {
+        return CreatePingResult(env, false, -1, "libXray ping returned null.");
+    }
+
+    std::string response(raw);
+    std::string decoded = Base64Decode(response);
+    if (decoded.find('{') == std::string::npos) {
+        decoded = response;
+    }
+
+    int64_t delay = -1;
+    bool ok = ParsePingResponse(decoded, delay, message);
+    return CreatePingResult(env, ok, delay, message);
 }
 
 napi_value ValidateConfig(napi_env env, napi_callback_info info)
@@ -411,31 +531,33 @@ napi_value StartXray(napi_env env, napi_callback_info info)
     }
 
     std::string message;
-    std::string configPath = workDir + "/" + XRAY_CONFIG_FILE;
-    if (!WriteTextFile(configPath, config, message)) {
+    if (!LoadXrayCore(message)) {
         g_xrayRunning.store(false);
         return CreateResult(env, false, message);
     }
 
-    int pid = -1;
-    std::vector<std::string> argsList = {
-        ExecPath(XRAY_EXEC_NAME),
-        "run",
-        "-config",
-        configPath,
-    };
-    if (!SpawnProcess(argsList, pid, message)) {
+    std::ostringstream request;
+    request << "{\"datDir\":\"" << JsonEscape(workDir) << "\","
+            << "\"configJSON\":\"" << JsonEscape(config) << "\"}";
+    std::string encoded = Base64Encode(request.str());
+    std::vector<char> buffer(encoded.begin(), encoded.end());
+    buffer.push_back('\0');
+
+    char* raw = g_runXrayFromJson(buffer.data());
+    if (raw == nullptr) {
+        g_xrayRunning.store(false);
+        return CreateResult(env, false, "libXray run returned null.");
+    }
+
+    std::string response(raw);
+    std::free(raw);
+    if (!ResponseOk(response, message)) {
         g_xrayRunning.store(false);
         return CreateResult(env, false, message);
     }
-    if (!ChildSurvivedStartup(pid, "Xray", message)) {
-        g_xrayRunning.store(false);
-        g_xrayPid.store(-1);
-        return CreateResult(env, false, message);
-    }
-    g_xrayPid.store(pid);
+
     g_xrayRunning.store(true);
-    return CreateResult(env, true, "Xray executable started.");
+    return CreateResult(env, true, "Xray core started.");
 }
 
 napi_value StopXray(napi_env env, napi_callback_info info)
@@ -445,9 +567,23 @@ napi_value StopXray(napi_env env, napi_callback_info info)
         return CreateResult(env, true, "Xray already stopped.");
     }
 
-    StopChild(g_xrayPid);
+    std::string message;
+    if (!LoadXrayCore(message)) {
+        return CreateResult(env, false, message);
+    }
+
+    char* raw = g_stopXray();
+    if (raw == nullptr) {
+        return CreateResult(env, false, "libXray stop returned null.");
+    }
+    std::string response(raw);
+    std::free(raw);
+    if (!ResponseOk(response, message)) {
+        return CreateResult(env, false, message);
+    }
+
     g_xrayRunning.store(false);
-    return CreateResult(env, true, "Xray stopped.");
+    return CreateResult(env, true, "Xray core stopped.");
 }
 
 napi_value StartTun2Socks(napi_env env, napi_callback_info info)
@@ -487,30 +623,25 @@ napi_value StartTun2Socks(napi_env env, napi_callback_info info)
         return CreateResult(env, false, message);
     }
 
-    int pid = -1;
-    std::vector<std::string> argsList = {
-        ExecPath(TUN2SOCKS_EXEC_NAME),
-        "-tun-fd",
-        std::to_string(tunFd),
-        "-socks-host",
-        host,
-        "-socks-port",
-        std::to_string(port),
-        "-mtu",
-        std::to_string(mtu),
-    };
-    if (!SpawnProcess(argsList, pid, message)) {
+    int result = g_startTun2Socks(tunFd, const_cast<char*>(host.c_str()), port, mtu);
+    if (result != 0) {
         g_tunRunning.store(false);
-        return CreateResult(env, false, message);
+        std::string detail;
+        if (g_tun2SocksLastError != nullptr) {
+            char* raw = g_tun2SocksLastError();
+            if (raw != nullptr) {
+                detail = raw;
+                std::free(raw);
+            }
+        }
+        if (detail.empty()) {
+            detail = "unknown error";
+        }
+        return CreateResult(env, false, "tun2socks adapter start failed: " + detail);
     }
-    if (!ChildSurvivedStartup(pid, "tun2socks", message)) {
-        g_tunRunning.store(false);
-        g_tunPid.store(-1);
-        return CreateResult(env, false, message);
-    }
-    g_tunPid.store(pid);
+
     g_tunRunning.store(true);
-    return CreateResult(env, true, "tun2socks executable started.");
+    return CreateResult(env, true, "tun2socks adapter started.");
 }
 
 napi_value StopTun2Socks(napi_env env, napi_callback_info info)
@@ -519,7 +650,11 @@ napi_value StopTun2Socks(napi_env env, napi_callback_info info)
     if (!g_tunRunning.load()) {
         return CreateResult(env, true, "tun2socks already stopped.");
     }
-    StopChild(g_tunPid);
+    std::string message;
+    if (!LoadTun2SocksCore(message)) {
+        return CreateResult(env, false, message);
+    }
+    g_stopTun2Socks();
     g_tunRunning.store(false);
     return CreateResult(env, true, "tun2socks stopped.");
 }
@@ -527,6 +662,15 @@ napi_value StopTun2Socks(napi_env env, napi_callback_info info)
 napi_value GetStats(napi_env env, napi_callback_info info)
 {
     (void)info;
+    if (g_tunRunning.load()) {
+        if (g_tun2SocksUploadBytes != nullptr) {
+            g_uploadBytes.store(g_tun2SocksUploadBytes());
+        }
+        if (g_tun2SocksDownloadBytes != nullptr) {
+            g_downloadBytes.store(g_tun2SocksDownloadBytes());
+        }
+    }
+
     napi_value result = nullptr;
     napi_create_object(env, &result);
     napi_set_named_property(env, result, "uploadBytes", CreateInt64(env, g_uploadBytes.load()));
@@ -549,6 +693,7 @@ static napi_value Init(napi_env env, napi_value exports)
         { "startTun2Socks", nullptr, StartTun2Socks, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "stopTun2Socks", nullptr, StopTun2Socks, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "getStats", nullptr, GetStats, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "pingOutbound", nullptr, PingOutbound, nullptr, nullptr, nullptr, napi_default, nullptr },
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;

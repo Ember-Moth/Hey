@@ -6,6 +6,12 @@ export interface NativeResult {
   message: string;
 }
 
+export interface NativePingResult {
+  ok: boolean;
+  delayMs: number;
+  message: string;
+}
+
 interface NativeBridge {
   validateConfig(configJson: string): NativeResult;
   startXray(configJson: string, workDir: string): NativeResult;
@@ -13,6 +19,7 @@ interface NativeBridge {
   startTun2Socks(tunFd: number, host: string, port: number, mtu: number): NativeResult;
   stopTun2Socks(): NativeResult;
   getStats(): RuntimeStats;
+  pingOutbound(configJson: string, datDir: string, url: string, timeoutSeconds: number, proxy: string): NativePingResult;
 }
 
 const bridge = heyNative as NativeBridge;
@@ -39,4 +46,8 @@ export function stopNativeTun2Socks(): NativeResult {
 
 export function getNativeStats(): RuntimeStats {
   return bridge.getStats();
+}
+
+export function pingNativeOutbound(configJson: string, datDir: string, url: string, timeoutSeconds: number, proxy: string): NativePingResult {
+  return bridge.pingOutbound(configJson, datDir, url, timeoutSeconds, proxy);
 }

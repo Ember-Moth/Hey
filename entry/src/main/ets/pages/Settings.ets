@@ -50,7 +50,7 @@ struct SettingsPage {
         statusBackground: SHARED_RUNTIME_CONTROLLER.statusBackground()
       })
       Scroll() {
-        Column({ space: 10 }) {
+        Column({ space: 0 }) {
           SectionHeader({ title: this.t('settings.language.section'), detail: this.t('settings.language.detail') })
           this.LanguageToggle()
           SectionHeader({ title: this.t('settings.core'), detail: this.t('settings.core.detail') })
@@ -85,23 +85,24 @@ struct SettingsPage {
 
           Button(this.t('action.saveSettings'))
             .height(40)
-            .width('100%')
-            .backgroundColor('#1D4ED8')
+            .width('88%')
+            .backgroundColor('#1C1B1F')
             .fontColor('#FFFFFF')
-            .borderRadius(8)
+            .borderRadius(20)
+            .margin({ top: 18, bottom: 10 })
             .onClick(() => {
               this.persistSettings(true);
             })
         }
         .width('100%')
-        .padding({ left: 14, right: 14, top: 14, bottom: 24 })
+        .padding({ bottom: 24 })
       }
       .layoutWeight(1)
       .width('100%')
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F6F8FA')
+    .backgroundColor('#FFFFFF')
   }
 
   @Builder
