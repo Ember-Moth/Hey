@@ -1,7 +1,8 @@
 # VPN Native Runtime 记录
 
 这份文档记录当前 HarmonyOS VPN native runtime 主线。当前实现不再使用
-TUN-to-SOCKS 适配层，而是把 Harmony VPN fd 交给 Xray 原生 TUN 入站处理。
+`tun2socks` / TUN-to-SOCKS 适配层，而是把 Harmony VPN fd 交给 Xray 原生
+TUN 入站处理。
 
 ## 当前链路
 
@@ -47,6 +48,7 @@ HAP 运行时只需要两个 native 文件：
 ## 已移除内容
 
 - 不再生成、打包或调用 TUN-to-SOCKS 适配层。
+- 不再依赖 `tun2socks` 进程转发 VPN 数据面。
 - 不再注入额外 Go 适配层文件到 `libxray.so`。
 - 不再导出适配层专用 C 符号。
 - 不再监听本地 SOCKS bridge 端口作为 VPN 数据面。

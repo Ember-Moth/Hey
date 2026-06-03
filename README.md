@@ -113,6 +113,12 @@ library, `libxray.so`. That library exports Xray control symbols plus
 `CGoSetTunFd`, documented in
 [`entry/src/main/cpp/README.md`](entry/src/main/cpp/README.md).
 
+Hey VPN does not bundle or invoke `tun2socks` for the VPN data path. HarmonyOS
+creates the VPN TUN fd, `libheyvpn.so` passes that fd into Xray with
+`CGoSetTunFd`, and the generated runtime config uses Xray's native
+`protocol: "tun"` inbound. A local SOCKS inbound may still be generated for
+per-node delay tests, but it is separate from VPN traffic forwarding.
+
 ## Roadmap
 
 - Real-device VPN traffic validation across more HarmonyOS versions.

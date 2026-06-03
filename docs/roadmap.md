@@ -1,0 +1,105 @@
+# Hey VPN 路线图（对标 v2rayNG）
+
+本文件记录 Hey 在 HarmonyOS Next 上对标 Android v2rayNG 的完成度评估与分阶段实施规划。
+评估基于真实代码（截至 2026-06-03），而非声称状态。配套页面/功能对照见
+[`v2rayng-feature-map.md`](v2rayng-feature-map.md)。
+
+## 一、真实完成度评分
+
+| 模块 | 状态 | 说明 |
+| --- | --- | --- |
+| 应用骨架 / 导航 / i18n | ✅ 95% | 双语、分层清晰、路由完整 |
+| 原生 TUN 数据通路 | 🟡 80% 代码 / 0% 验证 | 代码就位，**未真机闭环验证**——当前最大风险 |
+| 分享链接解析 | ✅ 85% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖；**缺 TUIC** |
+| 订阅管理 | 🟡 75% | 多分组 + 旧版迁移；**缺自动更新、批量更新全部、去重** |
+| Xray 配置生成 | 🟡 60% | inbound/outbound/dns 完整；**路由规则仅一条「绕过 cn」** |
+| 节点延迟测速 / 排序 | ✅ 80% | `CGoPing` 真测速 + 排序，需真机验证 |
+| 路由设置页 | 🟡 40% | UI 完整，但**广告拦截 / 自定义规则集仅为说明弹窗，不生效** |
+| Geo 资产管理 | ✅ 85% | 下载 / 自定义 URL / 备份还原已实现 |
+| 分应用代理 | 🔴 20% | 仅开关持久化，**无真实应用列表枚举** |
+| 设置页 | 🟡 70% | 核心项持久化并生效 |
+| 扫码导入 | 🔴 30% | **仅粘贴，无相机扫码** |
+| 导出 / 分享 | 🔴 30% | 仅文本导出，**无二维码生成** |
+| 平台集成 | 🔴 0% | 无快捷方式 / 卡片 / 深链导入 |
+
+### Native 桥接现状
+
+`libxray.so` 导出 13 个 CGo 函数，当前 `napi_init.cpp` 仅接通 4 个：
+
+- 已接通：`CGoRunXrayFromJSON`、`CGoStopXray`、`CGoPing`、`CGoSetTunFd`
+- **闲置**：`CGoQueryStats`（真实流量统计）、`CGoReadGeoFiles` / `CGoCountGeoData`（geo 校验）、
+  `CGoTestXray`（配置预检）、`CGoXrayVersion`、`CGoConvertShareLinksToXrayJson`、
+  `CGOConvertXrayJsonToShareLinks`、`CGoGetFreePorts`、`CGoRunXray`
+
+> 当前 `getStats()` 返回的是 C++ 侧近似计数，非内核真实统计。
+
+## 二、分阶段路线图
+
+### 阶段 0：真机闭环验证（最优先，阻塞一切）
+
+没有这一步，后续功能都建立在未验证的数据通路上。
+
+- 真机安装 HAP，跑通 连接 → TUN → Xray → 出站 → 实际可上网
+- 验证 `CGoSetTunFd` + Xray `tun` inbound 的真实转发
+- 修复真机暴露的问题
+
+清单见 [`real-device-vpn-test.md`](real-device-vpn-test.md)。
+**产出**：一份「真机已验证可上网」的结论。
+
+### 阶段 1：补全 Native 内核能力（投入小、解锁多）
+
+在 `napi_init.cpp` 接通闲置的 CGo 函数：
+
+- `CGoQueryStats` → 真实上下行流量统计
+- `CGoTestXray` → 连接前配置预检，减少启动失败
+- `CGoXrayVersion` → About 页显示内核版本
+- `CGoReadGeoFiles` / `CGoCountGeoData` → geo 文件校验与计数
+
+**产出**：统计准确 + 配置可预检。
+
+### 阶段 2：路由规则系统（核心差距）
+
+- 让 Routing 页的「广告拦截」「自定义规则集」真正生效（当前仅弹窗）
+- `XrayConfig.ets` 的 `buildRoutingRules` 扩展：多规则、ad-block
+  （`geosite:category-ads-all` → block）、用户自定义 域名 / IP / 端口规则
+- 新建规则编辑器页（增删改 + 持久化）
+
+**产出**：对齐 v2rayNG RoutingSettingActivity / RoutingEditActivity。
+
+### 阶段 3：分应用代理
+
+- 用鸿蒙 `bundleManager` 枚举已安装应用
+- 选择列表 → 写入 `vpnConfig` 的 `acceptedApplications` / `refusedApplications`
+- 持久化白 / 黑名单
+
+**产出**：对齐 PerAppProxyActivity。
+
+### 阶段 4：体验功能补全（多数可并行）
+
+- 相机扫码（`@kit.ScanKit` scanBarcode）替代纯粘贴
+- 二维码生成（节点分享）
+- TUIC 协议解析 + 运行
+- 自动订阅更新（后台任务 / 定时）
+- 删除重复 / 无效节点、批量更新全部
+
+### 阶段 5：平台集成（鸿蒙特性）
+
+- Want / 深链导入（对应 v2rayNG UrlScheme）
+- 桌面快捷方式、服务卡片（widget）
+- 开机自启（受平台权限限制，量力而行）
+
+## 三、依赖关系
+
+```text
+阶段0(真机验证) ──┬─→ 阶段1(内核) ──→ 阶段2(路由) ──→ 阶段3(分应用)
+                  └─→ 阶段4(体验)   // 多数可与 1/2/3 并行
+                                    阶段5(平台)   // 最后
+```
+
+## 四、进度记录
+
+| 日期 | 阶段 | 变更 |
+| --- | --- | --- |
+| 2026-06-03 | — | 建立路线图，完成基于真实代码的完成度评估 |
+</content>
+</invoke>
