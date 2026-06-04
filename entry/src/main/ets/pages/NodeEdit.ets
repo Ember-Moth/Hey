@@ -8,9 +8,141 @@ import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController
 import { SubscriptionStore } from '../storage/SubscriptionStore';
 import { PageHeader } from '../shell/PageHeader';
 
+// 1. 声明独立的通用子组件，支持标准的双向状态重绘 (@Link)
+
+@Component
+struct SegmentedControl {
+  @Prop label: string = '';
+  options: Array<string> = [];
+  @Link selected: string;
+  onSelect?: (value: string) => void;
+
+  build() {
+    Column({ space: 6 }) {
+      Text(this.label)
+        .fontSize(12)
+        .fontColor('#4B5563')
+        .width('100%')
+      Row({ space: 4 }) {
+        ForEach(this.options, (option: string) => {
+          Text(option.toUpperCase())
+            .layoutWeight(1)
+            .height(34)
+            .fontSize(11)
+            .fontWeight(this.selected === option ? FontWeight.Bold : FontWeight.Normal)
+            .fontColor(this.selected === option ? '#FFFFFF' : '#4B5563')
+            .backgroundColor(this.selected === option ? '#F97910' : '#E5E7EB')
+            .textAlign(TextAlign.Center)
+            .borderRadius(6)
+            .onClick(() => {
+              this.selected = option;
+              if (this.onSelect !== undefined) {
+                this.onSelect(option);
+              }
+            })
+        }, (option: string) => option)
+      }
+      .width('100%')
+      .padding(3)
+      .backgroundColor('#E5E7EB')
+      .borderRadius(8)
+    }
+    .width('100%')
+  }
+}
+
+@Component
+struct ToggleRow {
+  @Prop label: string = '';
+  @Link isOn: boolean;
+
+  build() {
+    Row() {
+      Text(this.label)
+        .fontSize(13)
+        .fontColor('#4B5563')
+      Blank()
+      Toggle({ type: ToggleType.Switch, isOn: this.isOn })
+        .onChange((state: boolean) => {
+          this.isOn = state;
+        })
+    }
+    .width('100%')
+    .height(42)
+    .alignItems(VerticalAlign.Center)
+  }
+}
+
+@Component
+struct PickerRow {
+  @Prop label: string = '';
+  options: Array<string> = [];
+  @Link selectedValue: string;
+
+  build() {
+    Column({ space: 6 }) {
+      Text(this.label)
+        .fontSize(12)
+        .fontColor('#4B5563')
+        .width('100%')
+      
+      Row() {
+        Text(this.selectedValue.toUpperCase())
+          .fontSize(13)
+          .fontColor('#111827')
+          .fontWeight(FontWeight.Medium)
+        
+        Blank()
+        
+        Image($r('app.media.ic_chevron_right'))
+          .width(14)
+          .height(14)
+          .fillColor('#9CA3AF')
+      }
+      .width('100%')
+      .height(42)
+      .backgroundColor('#F3F4F6')
+      .borderRadius(8)
+      .padding({ left: 12, right: 12 })
+      .alignItems(VerticalAlign.Center)
+      .onClick(() => {
+        const selectedIndex = this.options.indexOf(this.selectedValue) >= 0 ? this.options.indexOf(this.selectedValue) : 0;
+        TextPickerDialog.show({
+          range: this.options,
+          selected: selectedIndex,
+          onAccept: (value: TextPickerResult) => {
+            let idx = 0;
+            if (value.index !== undefined) {
+              if (typeof value.index === 'number') {
+                idx = value.index;
+              } else if (typeof value.index === 'string') {
+                idx = Number(value.index);
+              } else if (Array.isArray(value.index)) {
+                idx = Number(value.index[0]);
+              }
+            }
+            if (!Number.isNaN(idx) && idx >= 0 && idx < this.options.length) {
+              this.selectedValue = this.options[idx];
+            } else if (value.value !== undefined) {
+              if (typeof value.value === 'string') {
+                this.selectedValue = value.value;
+              } else if (Array.isArray(value.value)) {
+                this.selectedValue = value.value[0];
+              }
+            }
+          }
+        })
+      })
+    }
+    .width('100%')
+  }
+}
+
+// 2. 定义拼装 outbound JSON 结构所需的接口
 interface FormVlessUser {
   id: string;
   encryption: string;
+  flow?: string;
 }
 
 interface FormVlessServer {
@@ -43,6 +175,7 @@ interface FormTrojanServer {
   address: string;
   port: number;
   password: string;
+  flow?: string;
 }
 
 interface FormTrojanSettings {
@@ -75,6 +208,51 @@ interface FormServerSettings {
   servers: Array<FormGenericServer>;
 }
 
+interface FormWireguardPeer {
+  publicKey: string;
+  endpoint: string;
+  preSharedKey?: string;
+}
+
+interface FormWireguardSettings {
+  secretKey: string;
+  address: Array<string>;
+  peers: Array<FormWireguardPeer>;
+  mtu?: number;
+  reserved?: Array<number>;
+}
+
+interface FormHysteria2Server {
+  address: string;
+  port: number;
+  password: string;
+  sni?: string;
+  alpn?: string;
+  insecure?: boolean;
+  obfsPassword?: string;
+  portHopping?: string;
+  bandwidthDown?: string;
+  bandwidthUp?: string;
+}
+
+interface FormHysteria2Settings {
+  servers: Array<FormHysteria2Server>;
+}
+
+interface FormTcpRequest {
+  path: Array<string>;
+  headers: Record<string, Array<string>>;
+}
+
+interface FormTcpHeader {
+  type: string;
+  request?: FormTcpRequest;
+}
+
+interface FormTcpSettings {
+  header: FormTcpHeader;
+}
+
 interface FormWsHeaders {
   Host: string;
 }
@@ -87,6 +265,7 @@ interface FormWsSettings {
 interface FormGrpcSettings {
   serviceName: string;
   authority: string;
+  multiMode: boolean;
 }
 
 interface FormHttpSettings {
@@ -94,15 +273,36 @@ interface FormHttpSettings {
   host: Array<string>;
 }
 
+interface FormXhttpSettings {
+  path: string;
+  host: string;
+  mode?: string;
+}
+
+interface FormTlsSettings {
+  allowInsecure: boolean;
+  serverName?: string;
+  alpn?: Array<string>;
+  fingerprint?: string;
+  publicKey?: string;
+  shortId?: string;
+  spiderX?: string;
+  show?: boolean;
+}
+
 interface FormStreamSettings {
   network: string;
   security?: string;
+  tcpSettings?: FormTcpSettings;
   wsSettings?: FormWsSettings;
   grpcSettings?: FormGrpcSettings;
   httpSettings?: FormHttpSettings;
+  xhttpSettings?: FormXhttpSettings;
+  tlsSettings?: FormTlsSettings;
+  realitySettings?: FormTlsSettings;
 }
 
-type FormOutboundSettings = FormVlessSettings | FormVmessSettings | FormTrojanSettings | FormShadowsocksSettings | FormServerSettings;
+type FormOutboundSettings = FormVlessSettings | FormVmessSettings | FormTrojanSettings | FormShadowsocksSettings | FormServerSettings | FormWireguardSettings | FormHysteria2Settings;
 
 interface FormOutbound {
   protocol: string;
@@ -124,10 +324,38 @@ struct NodeEditPage {
   @State private proxyPass: string = '';
   @State private securityOrMethod: string = 'none';
   @State private vmessAlterId: string = '0';
+  @State private vlessFlow: string = 'none';
+  
+  // 传输协议设置
   @State private transportType: string = 'tcp';
   @State private transportHost: string = '';
   @State private transportPath: string = '';
-  @State private tlsSecurity: string = '';
+  
+  // 安全传输层设置 (TLS / Reality)
+  @State private tlsSecurity: string = 'none';
+  @State private tlsSni: string = '';
+  @State private tlsAlpn: string = '';
+  @State private tlsAllowInsecure: boolean = false;
+  @State private tlsFingerprint: string = 'none';
+  
+  // Reality 专属字段
+  @State private realityPublicKey: string = '';
+  @State private realityShortId: string = '';
+  @State private realitySpiderX: string = '/';
+
+  // WireGuard 专属字段
+  @State private wgPublicKey: string = '';
+  @State private wgPreSharedKey: string = '';
+  @State private wgReserved: string = '0,0,0';
+  @State private wgLocalAddress: string = '172.16.0.2/32';
+  @State private wgMtu: string = '1420';
+
+  // Hysteria2 专属字段
+  @State private hy2ObfsPassword: string = '';
+  @State private hy2PortHopping: string = '';
+  @State private hy2BandwidthDown: string = '';
+  @State private hy2BandwidthUp: string = '';
+
   @State private isBusy: boolean = false;
   @State private lastError: string = '';
   @State private isPressed: boolean = false;
@@ -149,17 +377,17 @@ struct NodeEditPage {
       Stack({ alignContent: Alignment.Bottom }) {
         Scroll() {
           Column({ space: 16 }) {
-            // 基本参数卡片
+            // Card 1：基础配置信息
             Column({ space: 14 }) {
               this.CardSectionTitle('基础配置信息')
               
-              this.EditorRow('节点名称', this.nodeName, '例如：主力香港节点', (value: string) => {
+              this.EditorRow('节点名称', this.nodeName, '例如：香港 01 节点', (value: string) => {
                 this.nodeName = value;
               })
-              this.EditorRow('服务器地址', this.serverHost, 'IP 地址或域名', (value: string) => {
+              this.EditorRow(this.protocol === 'wireguard' ? '端点地址 (Endpoint Host)' : '服务器地址', this.serverHost, 'IP 地址或域名', (value: string) => {
                 this.serverHost = value;
               })
-              this.EditorRow('端口', this.serverPort, '端口（1-65535）', (value: string) => {
+              this.EditorRow(this.protocol === 'wireguard' ? '端点端口 (Endpoint Port)' : '端口', this.serverPort, '端口（1-65535）', (value: string) => {
                 this.serverPort = value;
               })
             }
@@ -169,43 +397,76 @@ struct NodeEditPage {
             .borderRadius(16)
             .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
 
-            // 核心认证卡片
+            // Card 2：认证与加密参数
             Column({ space: 14 }) {
-              this.CardSectionTitle('认证与加密')
+              this.CardSectionTitle('认证与加密设置')
 
+              // VLESS 与 VMess UUID
               if (this.protocol === 'vless' || this.protocol === 'vmess') {
-                this.EditorRow('用户 ID (UUID)', this.userIdOrPassword, '36 位用户 UUID', (value: string) => {
-                  this.userIdOrPassword = value;
-                })
-              } else if (this.protocol === 'trojan' || this.protocol === 'ss') {
-                this.EditorRow(this.protocol === 'trojan' ? '连接密码' : '加密密码', this.userIdOrPassword, '连接密码', (value: string) => {
+                this.EditorRow('用户 ID (UUID)', this.userIdOrPassword, '36 位 UUID 认证凭证', (value: string) => {
                   this.userIdOrPassword = value;
                 })
               }
-
-              if (this.protocol === 'socks' || this.protocol === 'http') {
+              // Trojan 连接密码
+              else if (this.protocol === 'trojan') {
+                this.EditorRow('连接密码', this.userIdOrPassword, 'Trojan 认证密码', (value: string) => {
+                  this.userIdOrPassword = value;
+                })
+              }
+              // Shadowsocks 密码
+              else if (this.protocol === 'ss') {
+                this.EditorRow('加密密码', this.userIdOrPassword, 'Shadowsocks 加密密码', (value: string) => {
+                  this.userIdOrPassword = value;
+                })
+              }
+              // Hysteria2 密码
+              else if (this.protocol === 'hysteria2') {
+                this.EditorRow('认证密码', this.userIdOrPassword, 'Hysteria2 认证密码', (value: string) => {
+                  this.userIdOrPassword = value;
+                })
+              }
+              // WireGuard 本地私钥
+              else if (this.protocol === 'wireguard') {
+                this.EditorRow('本地私钥 (Secret Key)', this.userIdOrPassword, 'WireGuard 客户端私钥', (value: string) => {
+                  this.userIdOrPassword = value;
+                })
+              }
+              // Socks 与 HTTP 的用户名和密码
+              else if (this.protocol === 'socks' || this.protocol === 'http') {
                 this.EditorRow('用户名 (可选)', this.proxyUser, '代理用户名', (value: string) => {
                   this.proxyUser = value;
                 })
-                this.EditorRow('密码 (可选)', this.proxyPass, '代理连接密码', (value: string) => {
+                this.EditorRow('密码 (可选)', this.proxyPass, '代理密码', (value: string) => {
                   this.proxyPass = value;
                 })
               }
 
+              // 特有加密与流控选项
               if (this.protocol === 'vless') {
-                this.EditorRow('加密算法 (encryption)', this.securityOrMethod, '默认 none', (value: string) => {
-                  this.securityOrMethod = value;
+                PickerRow({
+                  label: '加密算法 (encryption)',
+                  options: ['none', 'aes-128-gcm', 'chacha20-ietf-poly1305'],
+                  selectedValue: $securityOrMethod
+                })
+                SegmentedControl({
+                  label: '流控协议 (flow)',
+                  options: ['none', 'xtls-rprx-vision'],
+                  selected: $vlessFlow
                 })
               } else if (this.protocol === 'vmess') {
-                this.EditorRow('加密安全性 (security)', this.securityOrMethod, '默认 auto', (value: string) => {
-                  this.securityOrMethod = value;
+                PickerRow({
+                  label: '安全策略 (security)',
+                  options: ['auto', 'none', 'zero', 'aes-128-gcm', 'chacha20-ietf-poly1305'],
+                  selectedValue: $securityOrMethod
                 })
                 this.EditorRow('额外 ID (alterId)', this.vmessAlterId, '一般设为 0', (value: string) => {
                   this.vmessAlterId = value;
                 })
               } else if (this.protocol === 'ss') {
-                this.EditorRow('加密方法 (method)', this.securityOrMethod, '例如 aes-128-gcm', (value: string) => {
-                  this.securityOrMethod = value;
+                PickerRow({
+                  label: '加密算法 (method)',
+                  options: ['aes-128-gcm', 'aes-256-gcm', 'chacha20-ietf-poly1305', '2022-blake3-aes-128-gcm', '2022-blake3-aes-256-gcm', '2022-blake3-chacha20-poly1305'],
+                  selectedValue: $securityOrMethod
                 })
               }
             }
@@ -215,23 +476,135 @@ struct NodeEditPage {
             .borderRadius(16)
             .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
 
-            // 传输与混淆设置 (VLESS, VMESS, Trojan)
-            if (this.protocol === 'vless' || this.protocol === 'vmess' || this.protocol === 'trojan') {
+            // Card 3：WireGuard 专有配置
+            if (this.protocol === 'wireguard') {
               Column({ space: 14 }) {
-                this.CardSectionTitle('传输与混淆设置')
-
-                this.EditorRow('传输协议 (network)', this.transportType, 'tcp / ws / grpc / h2', (value: string) => {
-                  this.transportType = value;
+                this.CardSectionTitle('WireGuard 参数设置')
+                
+                this.EditorRow('对端公钥 (Peer Public Key)', this.wgPublicKey, '节点公钥', (value: string) => {
+                  this.wgPublicKey = value;
                 })
-                this.EditorRow('伪装域名 (host)', this.transportHost, '可选域名设置', (value: string) => {
+                this.EditorRow('预共享密钥 (Pre-shared Key - 可选)', this.wgPreSharedKey, 'Pre-shared Key', (value: string) => {
+                  this.wgPreSharedKey = value;
+                })
+                this.EditorRow('本地 IP 地址 (Local Address)', this.wgLocalAddress, '例如 172.16.0.2/32', (value: string) => {
+                  this.wgLocalAddress = value;
+                })
+                this.EditorRow('保留字节 (Reserved - 可选)', this.wgReserved, '格式如 0,0,0', (value: string) => {
+                  this.wgReserved = value;
+                })
+                this.EditorRow('最大传输单元 (MTU)', this.wgMtu, '默认 1420', (value: string) => {
+                  this.wgMtu = value;
+                })
+              }
+              .width('100%')
+              .padding(16)
+              .backgroundColor('#FFFFFF')
+              .borderRadius(16)
+              .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+            }
+
+            // Card 4：Hysteria2 专有配置
+            if (this.protocol === 'hysteria2') {
+              Column({ space: 14 }) {
+                this.CardSectionTitle('Hysteria 2 混淆与流控')
+                
+                this.EditorRow('混淆密码 (Obfs Password - 可选)', this.hy2ObfsPassword, 'Hysteria 2 混淆密码', (value: string) => {
+                  this.hy2ObfsPassword = value;
+                })
+                this.EditorRow('端口跳跃 (Port Hopping - 可选)', this.hy2PortHopping, '例如 20000-50000', (value: string) => {
+                  this.hy2PortHopping = value;
+                })
+                this.EditorRow('下载带宽 (Bandwidth Down - 可选)', this.hy2BandwidthDown, '例如 100 mbps', (value: string) => {
+                  this.hy2BandwidthDown = value;
+                })
+                this.EditorRow('上传带宽 (Bandwidth Up - 可选)', this.hy2BandwidthUp, '例如 20 mbps', (value: string) => {
+                  this.hy2BandwidthUp = value;
+                })
+                
+                // Hysteria 2 的 TLS 配置
+                this.EditorRow('SNI (Server Name Indication)', this.tlsSni, 'TLS 握手域名', (value: string) => {
+                  this.tlsSni = value;
+                })
+                this.EditorRow('ALPN', this.tlsAlpn, '多个 ALPN 以逗号连接，默认 h2', (value: string) => {
+                  this.tlsAlpn = value;
+                })
+                ToggleRow({
+                  label: '允许不安全证书 (Allow Insecure)',
+                  isOn: $tlsAllowInsecure
+                })
+              }
+              .width('100%')
+              .padding(16)
+              .backgroundColor('#FFFFFF')
+              .borderRadius(16)
+              .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+            }
+
+            // Card 5：流媒体与传输混淆设置 (适用于 VLESS, VMess, Trojan, SS)
+            if (this.protocol === 'vless' || this.protocol === 'vmess' || this.protocol === 'trojan' || this.protocol === 'ss') {
+              Column({ space: 14 }) {
+                this.CardSectionTitle('传输与伪装设置')
+
+                SegmentedControl({
+                  label: '传输协议 (network)',
+                  options: ['tcp', 'ws', 'grpc', 'h2', 'xhttp'],
+                  selected: $transportType
+                })
+                this.EditorRow('伪装域名 (Host)', this.transportHost, 'Host 字段或权威域名', (value: string) => {
                   this.transportHost = value;
                 })
-                this.EditorRow('伪装路径 (path)', this.transportPath, '可选路径设置', (value: string) => {
+                this.EditorRow('伪装路径 (Path / ServiceName)', this.transportPath, '请求路径或 gRPC 服务名', (value: string) => {
                   this.transportPath = value;
                 })
-                this.EditorRow('传输安全 (security)', this.tlsSecurity, 'tls / reality / 空', (value: string) => {
-                  this.tlsSecurity = value;
-                })
+
+                // 排除 Shadowsocks（xray 协议规范中 Shadowsocks 通常不配置外层 TLS/Reality）
+                if (this.protocol !== 'ss') {
+                  SegmentedControl({
+                    label: '安全传输层 (security)',
+                    options: this.protocol === 'trojan' ? ['tls', 'reality'] : ['none', 'tls', 'reality'],
+                    selected: $tlsSecurity
+                  })
+
+                  // TLS 展开项
+                  if (this.tlsSecurity === 'tls') {
+                    this.EditorRow('SNI (Server Name Indication)', this.tlsSni, 'TLS 握手域名', (value: string) => {
+                      this.tlsSni = value;
+                    })
+                    this.EditorRow('ALPN (可选)', this.tlsAlpn, '多个 ALPN 以逗号连接，如 h2,http/1.1', (value: string) => {
+                      this.tlsAlpn = value;
+                    })
+                    ToggleRow({
+                      label: '允许不安全证书',
+                      isOn: $tlsAllowInsecure
+                    })
+                    PickerRow({
+                      label: '客户端指纹 (fingerprint)',
+                      options: ['chrome', 'firefox', 'safari', 'edge', '360', 'qq', 'random', 'none'],
+                      selectedValue: $tlsFingerprint
+                    })
+                  }
+                  // Reality 展开项
+                  else if (this.tlsSecurity === 'reality') {
+                    this.EditorRow('Reality SNI', this.tlsSni, 'Reality 目标目标服务器域名', (value: string) => {
+                      this.tlsSni = value;
+                    })
+                    this.EditorRow('Reality 公钥 (pbk)', this.realityPublicKey, 'Reality 密钥对的 PublicKey', (value: string) => {
+                      this.realityPublicKey = value;
+                    })
+                    this.EditorRow('Reality 短 ID (sid)', this.realityShortId, 'Reality 短十六进制字符串', (value: string) => {
+                      this.realityShortId = value;
+                    })
+                    this.EditorRow('Reality Path (spx)', this.realitySpiderX, 'Reality SpiderX 路径', (value: string) => {
+                      this.realitySpiderX = value;
+                    })
+                    PickerRow({
+                      label: '客户端指纹 (fingerprint)',
+                      options: ['chrome', 'firefox', 'safari', 'edge', '360', 'qq', 'random', 'none'],
+                      selectedValue: $tlsFingerprint
+                    })
+                  }
+                }
               }
               .width('100%')
               .padding(16)
@@ -361,26 +734,38 @@ struct NodeEditPage {
     this.language = (await SETTINGS_CONTROLLER.load(context)).language;
   }
 
+  private formatEndpoint(host: string, port: number): string {
+    if (host.indexOf(':') >= 0 && !host.startsWith('[')) {
+      return `[${host}]:${port}`;
+    }
+    return `${host}:${port}`;
+  }
+
   private async saveManualNode(): Promise<void> {
     const host = this.serverHost.trim();
     const port = Number(this.serverPort.trim());
     if (host.length === 0 || Number.isNaN(port) || port < 1 || port > 65535) {
-      this.lastError = '请填写有效的服务器和端口';
+      this.lastError = '请填写有效的服务器 and 端口';
       return;
     }
 
     this.isBusy = true;
     try {
+      // 1. 初始化 outbound 基础字段
       const outbound: FormOutbound = {
         protocol: this.protocol === 'ss' ? 'shadowsocks' : this.protocol,
         tag: this.nodeName.trim().length > 0 ? this.nodeName.trim() : 'proxy'
       };
 
+      // 2. 根据协议填充 settings 字段
       if (this.protocol === 'vless') {
         const user: FormVlessUser = {
           id: this.userIdOrPassword.trim(),
           encryption: this.valueOr(this.securityOrMethod, 'none')
         };
+        if (this.vlessFlow.trim().length > 0 && this.vlessFlow.trim() !== 'none') {
+          user.flow = this.vlessFlow.trim();
+        }
         const server: FormVlessServer = {
           address: host,
           port: port,
@@ -389,7 +774,8 @@ struct NodeEditPage {
         outbound.settings = {
           vnext: [server]
         } as FormVlessSettings;
-      } else if (this.protocol === 'vmess') {
+      } 
+      else if (this.protocol === 'vmess') {
         const user: FormVmessUser = {
           id: this.userIdOrPassword.trim(),
           alterId: this.numberOr(this.vmessAlterId, 0),
@@ -403,16 +789,21 @@ struct NodeEditPage {
         outbound.settings = {
           vnext: [server]
         } as FormVmessSettings;
-      } else if (this.protocol === 'trojan') {
+      } 
+      else if (this.protocol === 'trojan') {
         const server: FormTrojanServer = {
           address: host,
           port: port,
           password: this.userIdOrPassword.trim()
         };
+        if (this.vlessFlow.trim().length > 0 && this.vlessFlow.trim() !== 'none') {
+          server.flow = this.vlessFlow.trim();
+        }
         outbound.settings = {
           servers: [server]
         } as FormTrojanSettings;
-      } else if (this.protocol === 'ss') {
+      } 
+      else if (this.protocol === 'ss') {
         const server: FormShadowsocksServer = {
           address: host,
           port: port,
@@ -422,7 +813,8 @@ struct NodeEditPage {
         outbound.settings = {
           servers: [server]
         } as FormShadowsocksSettings;
-      } else if (this.protocol === 'socks' || this.protocol === 'http') {
+      } 
+      else if (this.protocol === 'socks' || this.protocol === 'http') {
         const server: FormGenericServer = {
           address: host,
           port: port
@@ -440,31 +832,122 @@ struct NodeEditPage {
           servers: [server]
         } as FormServerSettings;
       }
+      else if (this.protocol === 'wireguard') {
+        const peer: FormWireguardPeer = {
+          publicKey: this.wgPublicKey.trim(),
+          endpoint: this.formatEndpoint(host, port)
+        };
+        if (this.wgPreSharedKey.trim().length > 0) {
+          peer.preSharedKey = this.wgPreSharedKey.trim();
+        }
+        const reservedArr: Array<number> = [];
+        const resParts = this.wgReserved.split(',');
+        for (let i = 0; i < resParts.length; i++) {
+          const parsed = Number(resParts[i].trim());
+          if (!Number.isNaN(parsed)) {
+            reservedArr.push(Math.floor(parsed));
+          }
+        }
+        const wgSettings: FormWireguardSettings = {
+          secretKey: this.userIdOrPassword.trim(),
+          address: this.wgLocalAddress.split(',').map(s => s.trim()).filter(s => s.length > 0),
+          peers: [peer],
+          mtu: this.numberOr(this.wgMtu, 1420)
+        };
+        if (reservedArr.length > 0) {
+          wgSettings.reserved = reservedArr;
+        }
+        outbound.settings = wgSettings;
+      }
+      else if (this.protocol === 'hysteria2') {
+        const server: FormHysteria2Server = {
+          address: host,
+          port: port,
+          password: this.userIdOrPassword.trim()
+        };
+        if (this.hy2ObfsPassword.trim().length > 0) {
+          server.obfsPassword = this.hy2ObfsPassword.trim();
+        }
+        if (this.hy2PortHopping.trim().length > 0) {
+          server.portHopping = this.hy2PortHopping.trim();
+        }
+        if (this.hy2BandwidthDown.trim().length > 0) {
+          server.bandwidthDown = this.hy2BandwidthDown.trim();
+        }
+        if (this.hy2BandwidthUp.trim().length > 0) {
+          server.bandwidthUp = this.hy2BandwidthUp.trim();
+        }
+        if (this.tlsSni.trim().length > 0) {
+          server.sni = this.tlsSni.trim();
+        }
+        if (this.tlsAlpn.trim().length > 0) {
+          server.alpn = this.tlsAlpn.trim();
+        }
+        server.insecure = this.tlsAllowInsecure;
+        
+        outbound.settings = {
+          servers: [server]
+        } as FormHysteria2Settings;
+      }
 
-      if (this.protocol === 'vless' || this.protocol === 'vmess' || this.protocol === 'trojan') {
+      // 3. 填充 streamSettings (适用于 VLESS, VMess, Trojan, SS)
+      if (this.protocol === 'vless' || this.protocol === 'vmess' || this.protocol === 'trojan' || this.protocol === 'ss') {
         const network = this.valueOr(this.transportType, 'tcp').toLowerCase();
         const streamSettings: FormStreamSettings = {
           network: network
         };
-        const security = this.tlsSecurity.trim().toLowerCase();
-        if (security === 'tls' || security === 'reality') {
-          streamSettings.security = security;
+
+        // Shadowsocks 忽略 TLS / Reality 安全选项
+        if (this.protocol !== 'ss') {
+          const security = this.tlsSecurity.trim().toLowerCase();
+          if (security === 'tls' || security === 'reality') {
+            streamSettings.security = security;
+            
+            const tlsConfig: FormTlsSettings = {
+              allowInsecure: this.tlsAllowInsecure
+            };
+            if (this.tlsSni.trim().length > 0) {
+              tlsConfig.serverName = this.tlsSni.trim();
+            }
+            if (this.tlsAlpn.trim().length > 0) {
+              tlsConfig.alpn = this.tlsAlpn.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            }
+            if (this.tlsFingerprint.trim().length > 0 && this.tlsFingerprint.trim() !== 'none') {
+              tlsConfig.fingerprint = this.tlsFingerprint.trim();
+            }
+
+            if (security === 'tls') {
+              streamSettings.tlsSettings = tlsConfig;
+            } else {
+              tlsConfig.publicKey = this.realityPublicKey.trim();
+              tlsConfig.shortId = this.realityShortId.trim();
+              tlsConfig.spiderX = this.realitySpiderX.trim();
+              tlsConfig.show = false;
+              streamSettings.realitySettings = tlsConfig;
+            }
+          }
         }
+
+        // 填充底层传输协议专属配置
         if (network === 'ws') {
+          const wsHeaders: FormWsHeaders = {
+            Host: this.transportHost.trim()
+          };
           const wsSettings: FormWsSettings = {
             path: this.valueOr(this.transportPath, '/'),
-            headers: {
-              Host: this.transportHost.trim()
-            }
+            headers: wsHeaders
           };
           streamSettings.wsSettings = wsSettings;
-        } else if (network === 'grpc') {
+        } 
+        else if (network === 'grpc') {
           const grpcSettings: FormGrpcSettings = {
             serviceName: this.transportPath.trim(),
-            authority: this.transportHost.trim()
+            authority: this.transportHost.trim(),
+            multiMode: false
           };
           streamSettings.grpcSettings = grpcSettings;
-        } else if (network === 'h2') {
+        } 
+        else if (network === 'h2') {
           const hosts = new Array<string>();
           const transportHost = this.transportHost.trim();
           if (transportHost.length > 0) {
@@ -476,9 +959,18 @@ struct NodeEditPage {
           };
           streamSettings.httpSettings = httpSettings;
         }
+        else if (network === 'xhttp') {
+          const xhttpSettings: FormXhttpSettings = {
+            path: this.valueOr(this.transportPath, '/'),
+            host: this.transportHost.trim()
+          };
+          streamSettings.xhttpSettings = xhttpSettings;
+        }
+        
         outbound.streamSettings = streamSettings;
       }
 
+      // 4. 进行校验与保存
       const outboundJson = JSON.stringify(outbound, null, 2);
       const context = getContext(this) as common.Context;
       
@@ -522,30 +1014,39 @@ struct NodeEditPage {
       this.serverPort = '443';
       this.securityOrMethod = 'none';
       this.transportType = 'tcp';
-      this.tlsSecurity = '';
+      this.tlsSecurity = 'reality';
+      this.tlsFingerprint = 'chrome';
+      this.vlessFlow = 'xtls-rprx-vision';
     } else if (protocol === 'vmess') {
       this.serverPort = '443';
       this.securityOrMethod = 'auto';
       this.vmessAlterId = '0';
       this.transportType = 'tcp';
-      this.tlsSecurity = '';
+      this.tlsSecurity = 'tls';
+      this.tlsFingerprint = 'chrome';
     } else if (protocol === 'trojan') {
       this.serverPort = '443';
       this.transportType = 'tcp';
       this.tlsSecurity = 'tls';
+      this.tlsFingerprint = 'chrome';
     } else if (protocol === 'ss') {
       this.serverPort = '8388';
       this.securityOrMethod = 'aes-128-gcm';
       this.transportType = 'tcp';
-      this.tlsSecurity = '';
+      this.tlsSecurity = 'none';
     } else if (protocol === 'socks') {
       this.serverPort = '1080';
-      this.transportType = 'tcp';
-      this.tlsSecurity = '';
+      this.tlsSecurity = 'none';
     } else if (protocol === 'http') {
       this.serverPort = '8080';
-      this.transportType = 'tcp';
-      this.tlsSecurity = '';
+      this.tlsSecurity = 'none';
+    } else if (protocol === 'wireguard') {
+      this.serverPort = '51820';
+      this.tlsSecurity = 'none';
+    } else if (protocol === 'hysteria2') {
+      this.serverPort = '443';
+      this.tlsSecurity = 'none';
+      this.tlsAlpn = 'h2';
     }
   }
 }

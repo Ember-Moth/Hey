@@ -1,3 +1,5 @@
+import { AppColor } from '../theme/Theme';
+
 export type IconButtonHandler = () => void;
 
 @Component
@@ -5,8 +7,8 @@ export struct IconButton {
   icon: Resource = $r('app.media.ic_more_vert');
   iconSize: number = 24;
   buttonSize: number = 44;
-  iconColor: string = '#1C1B1F';
-  buttonBackground: string = '#00000000';
+  iconColor: ResourceColor = AppColor.textPrimary;
+  buttonBackground: ResourceColor = Color.Transparent;
   radius: number = 22;
   isEnabled: boolean = true;
   onAction: IconButtonHandler = () => {};

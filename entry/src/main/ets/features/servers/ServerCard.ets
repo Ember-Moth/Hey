@@ -1,5 +1,6 @@
 import { ProxyNode } from '../../core/Profile';
 import { IconButton } from '../../components/IconButton';
+import { AppColor, FontSz, Radius, Space } from '../../theme/Theme';
 
 export type ProxyNodeHandler = (node: ProxyNode) => void;
 
@@ -23,7 +24,7 @@ export struct ServerNodeCard {
   @Prop isBusy: boolean = false;
   @Prop sourceLabel: string = '';
   @Prop delayText: string = '';
-  @Prop delayColor: string = '#6B7280';
+  @Prop delayColor: ResourceColor = AppColor.textTertiary;
   @Prop currentLabel: string = '';
   @Prop useLabel: string = '';
   @Prop openLabel: string = '';
@@ -66,41 +67,44 @@ export struct ServerNodeCard {
 
   build() {
     Column() {
-      Row({ space: 12 }) {
-        // Selected indicator bar on the left edge
+      Row({ space: Space.md }) {
+        // 左侧选中态指示条
         Column()
           .width(4)
           .height(48)
-          .backgroundColor(this.isSelected ? '#F97910' : '#00000000')
+          .backgroundColor(this.isSelected ? AppColor.brand : Color.Transparent)
           .borderRadius(2)
 
-        // Flag Emoji based on name
+        // 根据节点名推断的国旗
         Text(this.getFlagEmoji(this.node.name))
           .fontSize(28)
-          .margin({ left: 4 })
+          .margin({ left: Space.xs })
 
         Column({ space: 5 }) {
           Text(this.node.name)
-            .fontSize(17)
+            .fontSize(FontSz.headline)
             .fontWeight(this.isSelected ? FontWeight.Bold : FontWeight.Medium)
-            .fontColor('#1C1B1F')
+            .fontColor(AppColor.textPrimary)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(this.sourceLabel)
-            .fontSize(14)
-            .fontColor('#49454F')
+            .fontSize(FontSz.body)
+            .fontColor(AppColor.textSecondary)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          
-          Row({ space: 8 }) {
+
+          Row({ space: Space.sm }) {
             Text(this.node.protocol.toUpperCase())
-              .fontSize(13)
+              .fontSize(FontSz.footnote)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#F97910')
-            
+              .fontColor(AppColor.brand)
+              .padding({ left: Space.sm, right: Space.sm, top: 2, bottom: 2 })
+              .backgroundColor(AppColor.brandTint)
+              .borderRadius(Radius.sm)
+
             if (this.delayText.length > 0) {
               Text(this.delayText)
-                .fontSize(13)
+                .fontSize(FontSz.footnote)
                 .fontColor(this.delayColor)
             }
           }
@@ -108,13 +112,13 @@ export struct ServerNodeCard {
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
 
-        Row({ space: 4 }) {
+        Row({ space: Space.xs }) {
           IconButton({
             icon: $r('app.media.ic_share'),
             buttonSize: 36,
             iconSize: 20,
             radius: 18,
-            iconColor: '#000000',
+            iconColor: AppColor.textSecondary,
             onAction: () => {
               this.onShare(this.node);
             }
@@ -126,7 +130,7 @@ export struct ServerNodeCard {
               buttonSize: 36,
               iconSize: 20,
               radius: 18,
-              iconColor: '#000000',
+              iconColor: AppColor.textSecondary,
               onAction: () => {
                 this.onOpen(this.node);
               }
@@ -138,24 +142,24 @@ export struct ServerNodeCard {
             buttonSize: 36,
             iconSize: 20,
             radius: 18,
-            iconColor: '#000000',
+            iconColor: AppColor.textSecondary,
             isEnabled: !this.isBusy,
             onAction: () => {
               this.onDelete(this.node);
             }
           })
         }
-        .margin({ right: 4 })
+        .margin({ right: Space.xs })
       }
       .width('100%')
-      .padding({ left: 0, right: 10, top: 14, bottom: 14 })
+      .padding({ left: 0, right: Space.md, top: Space.lg, bottom: Space.lg })
       Divider()
         .strokeWidth(1)
-        .color('#E0E0E0')
-        .margin({ left: 24 })
+        .color(AppColor.divider)
+        .margin({ left: Space.xxl })
     }
     .width('100%')
-    .backgroundColor(this.isSelected ? '#FFF5EC' : '#FFFFFF')
+    .backgroundColor(this.isSelected ? AppColor.brandTint : AppColor.surface)
     .onClick(() => {
       this.onSelect(this.node);
     })

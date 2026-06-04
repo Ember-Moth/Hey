@@ -199,6 +199,12 @@ struct ImportPage {
           this.ProtocolCard('http')
         }
         .width('100%')
+
+        Row({ space: 10 }) {
+          this.ProtocolCard('wireguard')
+          this.ProtocolCard('hysteria2')
+        }
+        .width('100%')
       }
       .width('100%')
     }
@@ -213,11 +219,11 @@ struct ImportPage {
   private ProtocolCard(protocol: string) {
     Row() {
       Column() {
-        Text(protocol.toUpperCase())
+        Text(protocol === 'hysteria2' ? 'HY2' : protocol.toUpperCase())
           .fontSize(14)
           .fontWeight(FontWeight.Bold)
           .fontColor('#111827')
-        Text(`${protocol === 'ss' ? 'Shadowsocks' : protocol.toUpperCase()} 协议`)
+        Text(`${protocol === 'ss' ? 'Shadowsocks' : (protocol === 'wireguard' ? 'WireGuard' : (protocol === 'hysteria2' ? 'Hysteria 2' : protocol.toUpperCase()))} 协议`)
           .fontSize(10)
           .fontColor('#9CA3AF')
           .margin({ top: 1 })

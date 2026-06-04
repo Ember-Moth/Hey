@@ -1,24 +1,26 @@
+import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
+
 @Component
 export struct MetricTile {
   label: string = '';
   value: string = '';
 
   build() {
-    Column({ space: 4 }) {
+    Column({ space: Space.xs }) {
       Text(this.label)
-        .fontSize(12)
-        .fontColor('#6B7280')
+        .fontSize(FontSz.footnote)
+        .fontColor(AppColor.textSecondary)
       Text(this.value)
-        .fontSize(15)
+        .fontSize(FontSz.callout)
         .fontWeight(FontWeight.Medium)
-        .fontColor('#111827')
+        .fontColor(AppColor.textPrimary)
     }
     .layoutWeight(1)
     .height(64)
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
-    .backgroundColor('#F9FAFB')
-    .borderRadius(6)
+    .backgroundColor(AppColor.surfaceAlt)
+    .borderRadius(Radius.sm)
   }
 }
 
@@ -28,18 +30,18 @@ export struct FlagTile {
   active: boolean = false;
 
   build() {
-    Row({ space: 8 }) {
+    Row({ space: Space.sm }) {
       Circle()
         .width(8)
         .height(8)
-        .fill(this.active ? '#16A34A' : '#9CA3AF')
+        .fill(this.active ? AppColor.success : AppColor.textTertiary)
       Text(this.label)
-        .fontSize(13)
-        .fontColor('#374151')
+        .fontSize(FontSz.footnote)
+        .fontColor(AppColor.textSecondary)
     }
     .height(34)
-    .padding({ left: 10, right: 10 })
-    .backgroundColor('#F9FAFB')
-    .borderRadius(6)
+    .padding({ left: Space.md, right: Space.md })
+    .backgroundColor(AppColor.surfaceAlt)
+    .borderRadius(Radius.sm)
   }
 }

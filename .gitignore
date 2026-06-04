@@ -13,3 +13,4 @@
 openspec/
 /build-profile.json5
 /docs/tmp/
+/.vscode

@@ -3,6 +3,95 @@
     {
       "name": "start_window_background",
       "value": "#FFFFFF"
+    },
+    {
+      "name": "brand",
+      "value": "#F97910"
+    },
+    {
+      "name": "brand_strong",
+      "value": "#FF9A3D"
+    },
+    {
+      "name": "brand_pressed",
+      "value": "#E06A00"
+    },
+    {
+      "name": "brand_tint",
+      "value": "#FFF3E9"
+    },
+    {
+      "name": "on_brand",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "bg",
+      "value": "#F4F6F8"
+    },
+    {
+      "name": "surface",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "surface_alt",
+      "value": "#F1F4F7"
+    },
+    {
+      "name": "border",
+      "value": "#E7EBF0"
+    },
+    {
+      "name": "divider",
+      "value": "#EEF1F5"
+    },
+    {
+      "name": "text_primary",
+      "value": "#1A1D21"
+    },
+    {
+      "name": "text_secondary",
+      "value": "#5B6470"
+    },
+    {
+      "name": "text_tertiary",
+      "value": "#98A1AD"
+    },
+    {
+      "name": "success",
+      "value": "#16A34A"
+    },
+    {
+      "name": "success_tint",
+      "value": "#E7F6ED"
+    },
+    {
+      "name": "warning",
+      "value": "#D97706"
+    },
+    {
+      "name": "danger",
+      "value": "#DC2626"
+    },
+    {
+      "name": "danger_tint",
+      "value": "#FCEBEB"
+    },
+    {
+      "name": "info",
+      "value": "#2563EB"
+    },
+    {
+      "name": "shadow_card",
+      "value": "#14000000"
+    },
+    {
+      "name": "shadow_brand",
+      "value": "#33F97910"
+    },
+    {
+      "name": "scrim",
+      "value": "#66000000"
     }
   ]
 }
+</content>

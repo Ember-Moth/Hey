@@ -1,5 +1,6 @@
 import { ProxyNode } from '../../core/Profile';
 import { normalizeOutboundInput } from '../../core/XrayConfig';
+import { formatOutboundJsonToShareLink } from '../../core/ShareLinkParser';
 
 export type NodeSortKey = 'delay' | 'name' | 'protocol';
 
@@ -113,6 +114,10 @@ function exportNodeText(node: ProxyNode): string {
   const rawLink = node.rawLink.trim();
   if (rawLink.length > 0) {
     return rawLink;
+  }
+  const link = formatOutboundJsonToShareLink(node.outboundJson, node.name);
+  if (link.length > 0) {
+    return link;
   }
   const validation = normalizeOutboundInput(node.outboundJson);
   if (validation.valid) {

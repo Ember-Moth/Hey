@@ -1,4 +1,4 @@
-import { decodeBase64ToUtf8 } from './Encoding';
+import { decodeBase64ToUtf8, encodeUtf8ToBase64 } from './Encoding';
 
 export interface ShareLinkParseResult {
   success: boolean;
@@ -204,6 +204,7 @@ interface XrayOutbound {
 }
 
 interface VmessQrCode {
+  v?: string;
   ps?: string;
   add?: string;
   port?: string;
@@ -217,6 +218,7 @@ interface VmessQrCode {
   sni?: string;
   fp?: string;
   alpn?: string;
+  insecure?: string;
 }
 
 function makeFailure(message: string, protocol: string = ''): ShareLinkParseResult {
@@ -1064,3 +1066,367 @@ function stringifyError(error: Error): string {
   }
   return JSON.stringify(error);
 }
+
+function formatHostPort(host: string, port: number): string {
+  if (host.indexOf(':') >= 0 && !host.startsWith('[')) {
+    return `[${host}]:${port}`;
+  }
+  return `${host}:${port}`;
+}
+
+function formatQueryParams(params: Map<string, string>): string {
+  if (params.size === 0) {
+    return '';
+  }
+  const parts: Array<string> = [];
+  params.forEach((value, key) => {
+    parts.push(`${key}=${encodeURIComponent(value)}`);
+  });
+  return `?${parts.join('&')}`;
+}
+
+function appendStreamSettingsToQuery(queryParams: Map<string, string>, stream?: XrayStreamSettings): void {
+  if (!stream) return;
+  const network = stream.network || 'tcp';
+  queryParams.set('type', network === 'http' || network === 'h2' ? 'http' : network);
+
+  const security = stream.security || 'none';
+  queryParams.set('security', security);
+
+  if (security === 'tls' || security === 'reality') {
+    const tlsSettings = security === 'tls' ? stream.tlsSettings : stream.realitySettings;
+    if (tlsSettings) {
+      if (tlsSettings.serverName) {
+        queryParams.set('sni', tlsSettings.serverName);
+      }
+      if (tlsSettings.allowInsecure) {
+        queryParams.set('insecure', '1');
+      }
+      if (tlsSettings.alpn && tlsSettings.alpn.length > 0) {
+        queryParams.set('alpn', tlsSettings.alpn.join(','));
+      }
+      if (tlsSettings.fingerprint) {
+        queryParams.set('fp', tlsSettings.fingerprint);
+      }
+      if (tlsSettings.publicKey) {
+        queryParams.set('pbk', tlsSettings.publicKey);
+      }
+      if (tlsSettings.shortId) {
+        queryParams.set('sid', tlsSettings.shortId);
+      }
+      if (tlsSettings.spiderX) {
+        queryParams.set('spx', tlsSettings.spiderX);
+      }
+    }
+  }
+
+  if (network === 'ws' && stream.wsSettings) {
+    if (stream.wsSettings.path) {
+      queryParams.set('path', stream.wsSettings.path);
+    }
+    if (stream.wsSettings.headers?.Host) {
+      queryParams.set('host', stream.wsSettings.headers.Host);
+    }
+  } else if (network === 'grpc' && stream.grpcSettings) {
+    if (stream.grpcSettings.serviceName) {
+      queryParams.set('serviceName', stream.grpcSettings.serviceName);
+    }
+    if (stream.grpcSettings.authority) {
+      queryParams.set('authority', stream.grpcSettings.authority);
+    }
+    if (stream.grpcSettings.multiMode) {
+      queryParams.set('mode', 'multi');
+    }
+  } else if ((network === 'h2' || network === 'http') && stream.httpSettings) {
+    if (stream.httpSettings.path) {
+      queryParams.set('path', stream.httpSettings.path);
+    }
+    if (stream.httpSettings.host && stream.httpSettings.host.length > 0) {
+      queryParams.set('host', stream.httpSettings.host.join(','));
+    }
+  } else if (network === 'xhttp' && stream.xhttpSettings) {
+    if (stream.xhttpSettings.path) {
+      queryParams.set('path', stream.xhttpSettings.path);
+    }
+    if (stream.xhttpSettings.host) {
+      queryParams.set('host', stream.xhttpSettings.host);
+    }
+    if (stream.xhttpSettings.mode) {
+      queryParams.set('mode', stream.xhttpSettings.mode);
+    }
+    if (stream.xhttpSettings.extra) {
+      queryParams.set('extra', JSON.stringify(stream.xhttpSettings.extra));
+    }
+  } else if (network === 'tcp' && stream.tcpSettings?.header?.type === 'http') {
+    queryParams.set('headerType', 'http');
+    const tcpReq = stream.tcpSettings.header.request;
+    if (tcpReq) {
+      if (tcpReq.path && tcpReq.path.length > 0) {
+        queryParams.set('path', tcpReq.path.join(','));
+      }
+      if (tcpReq.headers?.Host && tcpReq.headers.Host.length > 0) {
+        queryParams.set('host', tcpReq.headers.Host.join(','));
+      }
+    }
+  }
+}
+
+function formatVmess(outbound: XrayOutbound, name: string): string {
+  const settings = outbound.settings as XrayVmessSettings;
+  const server = settings?.vnext?.[0];
+  const user = server?.users?.[0];
+  if (!server || !user) {
+    throw new Error('VMess settings 缺少服务器或用户配置。');
+  }
+
+  const stream = outbound.streamSettings;
+  const network = stream?.network || 'tcp';
+  const security = stream?.security || '';
+
+  const vmessObj: VmessQrCode = {
+    v: '2',
+    ps: name,
+    add: server.address,
+    port: String(server.port),
+    id: user.id,
+    scy: user.security || 'auto',
+    net: network,
+    type: 'none',
+    host: '',
+    path: '',
+    tls: security
+  };
+
+  if (security === 'tls' || security === 'reality') {
+    const tlsSettings = security === 'tls' ? stream?.tlsSettings : stream?.realitySettings;
+    if (tlsSettings) {
+      if (tlsSettings.serverName) vmessObj.sni = tlsSettings.serverName;
+      if (tlsSettings.allowInsecure) vmessObj.insecure = '1';
+      if (tlsSettings.alpn && tlsSettings.alpn.length > 0) vmessObj.alpn = tlsSettings.alpn.join(',');
+      if (tlsSettings.fingerprint) vmessObj.fp = tlsSettings.fingerprint;
+    }
+  }
+
+  if (network === 'ws' && stream?.wsSettings) {
+    vmessObj.path = stream.wsSettings.path || '/';
+    vmessObj.host = stream.wsSettings.headers?.Host || '';
+  } else if (network === 'grpc' && stream?.grpcSettings) {
+    vmessObj.path = stream.grpcSettings.serviceName || '';
+    vmessObj.host = stream.grpcSettings.authority || '';
+    vmessObj.type = stream.grpcSettings.multiMode ? 'multi' : 'gun';
+  } else if ((network === 'h2' || network === 'http') && stream?.httpSettings) {
+    vmessObj.net = 'h2';
+    vmessObj.path = stream.httpSettings.path || '/';
+    vmessObj.host = stream.httpSettings.host?.join(',') || '';
+  } else if (network === 'tcp' && stream?.tcpSettings) {
+    const header = stream.tcpSettings.header;
+    vmessObj.type = header?.type || 'none';
+    if (header?.type === 'http' && header.request) {
+      vmessObj.path = header.request.path?.join(',') || '/';
+      vmessObj.host = header.request.headers?.Host?.join(',') || '';
+    }
+  } else if (network === 'xhttp' && stream?.xhttpSettings) {
+    vmessObj.path = stream.xhttpSettings.path || '/';
+    vmessObj.host = stream.xhttpSettings.host || '';
+    vmessObj.type = stream.xhttpSettings.mode || '';
+  }
+
+  const jsonStr = JSON.stringify(vmessObj);
+  const base64Str = encodeUtf8ToBase64(jsonStr);
+  return `vmess://${base64Str}`;
+}
+
+function formatVless(outbound: XrayOutbound, name: string): string {
+  const settings = outbound.settings as XrayVlessSettings;
+  const server = settings?.vnext?.[0];
+  const user = server?.users?.[0];
+  if (!server || !user) {
+    throw new Error('VLESS settings 缺少服务器或用户配置。');
+  }
+
+  const queryParams = new Map<string, string>();
+  queryParams.set('encryption', user.encryption || 'none');
+  if (user.flow) {
+    queryParams.set('flow', user.flow);
+  }
+
+  appendStreamSettingsToQuery(queryParams, outbound.streamSettings);
+
+  const queryStr = formatQueryParams(queryParams);
+  const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
+  return `vless://${user.id}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
+}
+
+function formatTrojan(outbound: XrayOutbound, name: string): string {
+  const settings = outbound.settings as XrayTrojanSettings;
+  const server = settings?.servers?.[0];
+  if (!server) {
+    throw new Error('Trojan settings 缺少服务器配置。');
+  }
+
+  const queryParams = new Map<string, string>();
+  if (server.flow) {
+    queryParams.set('flow', server.flow);
+  }
+
+  appendStreamSettingsToQuery(queryParams, outbound.streamSettings);
+
+  const queryStr = formatQueryParams(queryParams);
+  const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
+  return `trojan://${server.password}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
+}
+
+function formatShadowsocks(outbound: XrayOutbound, name: string): string {
+  const settings = outbound.settings as XrayShadowsocksSettings;
+  const server = settings?.servers?.[0];
+  if (!server) {
+    throw new Error('Shadowsocks settings 缺少服务器配置。');
+  }
+
+  const credentials = `${server.method}:${server.password}`;
+  const base64Credentials = encodeUtf8ToBase64(credentials);
+
+  const queryParams = new Map<string, string>();
+  const stream = outbound.streamSettings;
+  if (stream) {
+    const network = stream.network || 'tcp';
+    if (network === 'tcp' && stream.tcpSettings?.header?.type === 'http') {
+      const host = stream.tcpSettings.header.request?.headers?.Host?.[0] || '';
+      const path = stream.tcpSettings.header.request?.path?.[0] || '';
+      queryParams.set('plugin', `obfs-local;obfs=http;obfs-host=${host};path=${path}`);
+    }
+  }
+
+  const queryStr = formatQueryParams(queryParams);
+  const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
+  return `ss://${base64Credentials}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
+}
+
+function formatSocks(outbound: XrayOutbound, name: string): string {
+  const settings = outbound.settings as XrayServerSettings;
+  const server = settings?.servers?.[0];
+  if (!server) {
+    throw new Error('Socks settings 缺少服务器配置。');
+  }
+
+  let userInfo = '';
+  if (server.users && server.users.length > 0) {
+    userInfo = `${server.users[0].user}:${server.users[0].pass}@`;
+  }
+  const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
+  return `socks://${userInfo}${formatHostPort(server.address, server.port)}${hashStr}`;
+}
+
+function formatHttp(outbound: XrayOutbound, name: string): string {
+  const settings = outbound.settings as XrayServerSettings;
+  const server = settings?.servers?.[0];
+  if (!server) {
+    throw new Error('HTTP settings 缺少服务器配置。');
+  }
+
+  let userInfo = '';
+  if (server.users && server.users.length > 0) {
+    userInfo = `${server.users[0].user}:${server.users[0].pass}@`;
+  }
+  const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
+  return `http://${userInfo}${formatHostPort(server.address, server.port)}${hashStr}`;
+}
+
+function formatWireguard(outbound: XrayOutbound, name: string): string {
+  const settings = outbound.settings as XrayWireguardSettings;
+  if (!settings) {
+    throw new Error('WireGuard settings 缺少配置。');
+  }
+  const peer = settings.peers?.[0];
+  if (!peer) {
+    throw new Error('WireGuard settings 缺少 peer 配置。');
+  }
+
+  const queryParams = new Map<string, string>();
+  queryParams.set('publickey', peer.publicKey);
+  if (peer.preSharedKey) {
+    queryParams.set('presharedkey', peer.preSharedKey);
+  }
+  if (settings.address && settings.address.length > 0) {
+    queryParams.set('address', settings.address.join(','));
+  }
+  if (settings.mtu) {
+    queryParams.set('mtu', String(settings.mtu));
+  }
+  if (settings.reserved && settings.reserved.length > 0) {
+    queryParams.set('reserved', settings.reserved.join(','));
+  }
+
+  const endpoint = peer.endpoint;
+  const queryStr = formatQueryParams(queryParams);
+  const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
+  return `wireguard://${settings.secretKey}@${endpoint}${queryStr}${hashStr}`;
+}
+
+function formatHysteria2(outbound: XrayOutbound, name: string): string {
+  const settings = outbound.settings as XrayHysteria2Settings;
+  const server = settings?.servers?.[0];
+  if (!server) {
+    throw new Error('Hysteria2 settings 缺少服务器配置。');
+  }
+
+  const queryParams = new Map<string, string>();
+  if (server.sni) {
+    queryParams.set('sni', server.sni);
+  }
+  if (server.alpn) {
+    queryParams.set('alpn', server.alpn);
+  }
+  if (server.insecure) {
+    queryParams.set('insecure', '1');
+  }
+  if (server.obfsPassword) {
+    queryParams.set('obfs', 'salamander');
+    queryParams.set('obfs-password', server.obfsPassword);
+  }
+  if (server.portHopping) {
+    queryParams.set('mport', server.portHopping);
+  }
+  if (server.pinSHA256) {
+    queryParams.set('pinSHA256', server.pinSHA256);
+  }
+
+  const queryStr = formatQueryParams(queryParams);
+  const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
+  return `hysteria2://${server.password}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
+}
+
+export function formatOutboundJsonToShareLink(outboundJson: string, name: string): string {
+  try {
+    const outbound = JSON.parse(outboundJson) as XrayOutbound;
+    const protocol = outbound.protocol?.toLowerCase();
+    if (protocol === 'vless') {
+      return formatVless(outbound, name);
+    }
+    if (protocol === 'vmess') {
+      return formatVmess(outbound, name);
+    }
+    if (protocol === 'trojan') {
+      return formatTrojan(outbound, name);
+    }
+    if (protocol === 'shadowsocks') {
+      return formatShadowsocks(outbound, name);
+    }
+    if (protocol === 'socks') {
+      return formatSocks(outbound, name);
+    }
+    if (protocol === 'http') {
+      return formatHttp(outbound, name);
+    }
+    if (protocol === 'wireguard') {
+      return formatWireguard(outbound, name);
+    }
+    if (protocol === 'hysteria2') {
+      return formatHysteria2(outbound, name);
+    }
+    return '';
+  } catch (error) {
+    return '';
+  }
+}
+

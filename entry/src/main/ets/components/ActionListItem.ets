@@ -1,4 +1,5 @@
 import { IconButton } from './IconButton';
+import { AppColor, FontSz, Space } from '../theme/Theme';
 
 export type ActionListItemHandler = (title: string) => void;
 
@@ -13,21 +14,21 @@ export struct ActionListItem {
 
   build() {
     Column() {
-      Row({ space: 14 }) {
+      Row({ space: Space.lg }) {
         if (this.showLeadingIcon) {
           Image(this.icon)
             .width(24)
             .height(24)
-            .fillColor('#1C1B1F')
+            .fillColor(AppColor.textPrimary)
         }
-        Column({ space: 4 }) {
+        Column({ space: Space.xs }) {
           Text(this.title)
-            .fontSize(16)
+            .fontSize(FontSz.headline)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#1C1B1F')
+            .fontColor(AppColor.textPrimary)
           Text(this.detail)
-            .fontSize(13)
-            .fontColor('#49454F')
+            .fontSize(FontSz.footnote)
+            .fontColor(AppColor.textSecondary)
             .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -36,20 +37,20 @@ export struct ActionListItem {
           icon: $r('app.media.ic_chevron_right'),
           buttonSize: 42,
           iconSize: 26,
-          iconColor: '#1C1B1F',
+          iconColor: AppColor.textTertiary,
           onAction: () => {
             this.onAction(this.title);
           }
         })
       }
       .width('100%')
-      .padding({ left: 24, right: 10, top: 14, bottom: 14 })
+      .padding({ left: Space.xxl, right: Space.md, top: Space.lg, bottom: Space.lg })
       Divider()
         .strokeWidth(1)
-        .color('#E0E0E0')
-        .margin({ left: this.showLeadingIcon ? 62 : 24 })
+        .color(AppColor.divider)
+        .margin({ left: this.showLeadingIcon ? 62 : Space.xxl })
     }
     .width('100%')
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(AppColor.surface)
   }
 }

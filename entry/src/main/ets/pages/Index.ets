@@ -15,6 +15,7 @@ import { RuntimeViewState, SHARED_RUNTIME_CONTROLLER } from '../features/runtime
 import { SUBSCRIPTIONS_CONTROLLER, SubscriptionsControllerState } from '../features/subscriptions/SubscriptionsController';
 import { AppRoute } from '../shell/AppRoute';
 import { formatOne, formatTwo, localizeCoreMessage } from '../utils/LocalizationPresenter';
+import { AppColor, Elevation, FontSz, Radius, Space } from '../theme/Theme';
 
 const EMPTY_STATS: RuntimeStats = {
   uploadBytes: 0,
@@ -79,11 +80,11 @@ struct Index {
 
         if (this.lastError.length > 0) {
           Text(this.lastError)
-            .fontSize(13)
-            .fontColor('#B42318')
+            .fontSize(FontSz.footnote)
+            .fontColor(AppColor.danger)
             .width('100%')
-            .padding({ left: 24, right: 24, top: 12, bottom: 12 })
-            .backgroundColor('#FEF3F2')
+            .padding({ left: Space.xxl, right: Space.xxl, top: Space.md, bottom: Space.md })
+            .backgroundColor(AppColor.dangerTint)
         }
 
         // 仅在有订阅分组时才显示 Tab 选项卡
@@ -99,13 +100,13 @@ struct Index {
       }
       .height('100%')
       .width('100%')
-      .backgroundColor('#F6F8FA')
+      .backgroundColor(AppColor.bg)
 
       if (this.showSideBar) {
         Column() {}
           .width('100%')
           .height('100%')
-          .backgroundColor('#66000000')
+          .backgroundColor(AppColor.scrim)
           .transition({ opacity: 0 })
           .onClick(() => {
             animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
@@ -119,11 +120,11 @@ struct Index {
       }
       .width(280)
       .height('100%')
-      .backgroundColor('#FFFFFF')
+      .backgroundColor(AppColor.surface)
       .position({ x: 0, y: 0 })
       .translate({ x: this.showSideBar ? 0 : -280 })
       .animation({ duration: 250, curve: Curve.EaseOut })
-      .shadow({ radius: 12, color: '#33000000' })
+      .shadow({ radius: 12, color: AppColor.scrim })
     }
     .height('100%')
     .width('100%')
@@ -131,12 +132,12 @@ struct Index {
 
   @Builder
   private HomeHeader() {
-    Row({ space: 18 }) {
+    Row({ space: Space.sm }) {
       IconButton({
         icon: $r('app.media.ic_menu'),
-        buttonSize: 56,
-        iconSize: 32,
-        iconColor: '#49454F',
+        buttonSize: 48,
+        iconSize: 28,
+        iconColor: AppColor.textSecondary,
         onAction: () => {
           animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
             this.showSideBar = true;
@@ -145,30 +146,30 @@ struct Index {
       })
 
       Text(this.t('screen.servers.title'))
-        .fontSize(20)
+        .fontSize(FontSz.title)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#1C1B1F')
+        .fontColor(AppColor.textPrimary)
         .layoutWeight(1)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Column() {
         Image($r('app.media.ic_more_vert'))
-          .width(30)
-          .height(30)
-          .fillColor('#49454F')
+          .width(26)
+          .height(26)
+          .fillColor(AppColor.textSecondary)
       }
-      .width(56)
-      .height(56)
+      .width(48)
+      .height(48)
       .justifyContent(FlexAlign.Center)
       .alignItems(HorizontalAlign.Center)
-      .borderRadius(28)
+      .borderRadius(24)
       .bindMenu(this.MoreMenuBuilder())
     }
     .width('100%')
-    .height(92)
-    .padding({ left: 8, right: 10, top: 14 })
-    .backgroundColor('#FFFFFF')
+    .height(64)
+    .padding({ left: Space.md, right: Space.md })
+    .backgroundColor(AppColor.bg)
   }
 
   @Builder
@@ -192,39 +193,35 @@ struct Index {
           icon: $r('app.media.ic_subscriptions'),
           buttonSize: 44,
           iconSize: 22,
-          iconColor: '#4B5563',
+          iconColor: AppColor.textSecondary,
           onAction: () => {
             this.openRoute(AppRoute.SUBSCRIPTIONS);
           }
         })
-        .margin({ right: 16 })
+        .margin({ right: Space.lg })
       }
       .width('100%')
       .height(44)
-      .margin({ top: 8, bottom: 8 })
-
-      Divider()
-        .strokeWidth(1)
-        .color('#F3F4F6')
+      .margin({ top: Space.sm, bottom: Space.sm })
     }
     .width('100%')
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(AppColor.bg)
   }
 
   @Builder
   private GroupTab(group: SubscriptionGroup) {
     Row() {
       Text(group.name.length > 0 ? group.name : 'Subscription')
-        .fontSize(14)
+        .fontSize(FontSz.body)
         .fontWeight(group.id === this.selectedGroupId ? FontWeight.Bold : FontWeight.Medium)
-        .fontColor(group.id === this.selectedGroupId ? '#F97910' : '#4B5563')
+        .fontColor(group.id === this.selectedGroupId ? AppColor.onBrand : AppColor.textSecondary)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .height(34)
-    .padding({ left: 16, right: 16 })
-    .borderRadius(17)
-    .backgroundColor(group.id === this.selectedGroupId ? '#FFF7ED' : '#F3F4F6')
+    .padding({ left: Space.lg, right: Space.lg })
+    .borderRadius(Radius.pill)
+    .backgroundColor(group.id === this.selectedGroupId ? AppColor.brand : AppColor.surfaceAlt)
     .onClick(() => {
       this.selectSubscriptionGroup(group);
     })
@@ -232,36 +229,43 @@ struct Index {
 
   @Builder
   private DashboardCard() {
-    Column() {
-      Row() {
-        Column({ space: 4 }) {
-          Text(this.statusLabel())
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#111827')
-          Text(this.isRunning() ? `已连接: ${this.elapsedText}` : '准备就绪')
-            .fontSize(13)
-            .fontColor('#6B7280')
-        }
-        .alignItems(HorizontalAlign.Start)
+    Column({ space: Space.lg }) {
+      // 大号连接状态环
+      Stack({ alignContent: Alignment.Center }) {
+        // 外层光晕
+        Circle()
+          .width(140)
+          .height(140)
+          .fill(this.isRunning() ? AppColor.brandTint : AppColor.surfaceAlt)
 
-        Blank()
-
-        Button() {
-          Image(this.isRunning() ? $r('app.media.ic_stop') : $r('app.media.ic_play_arrow'))
-            .width(26)
-            .height(26)
-            .fillColor('#FFFFFF')
+        // 主按钮
+        Column() {
+          if (this.isBusy()) {
+            LoadingProgress()
+              .width(40)
+              .height(40)
+              .color(this.isRunning() ? AppColor.onBrand : AppColor.brand)
+          } else {
+            Image(this.isRunning() ? $r('app.media.ic_stop') : $r('app.media.ic_play_arrow'))
+              .width(40)
+              .height(40)
+              .fillColor(this.isRunning() ? AppColor.onBrand : AppColor.brand)
+          }
         }
-        .width(56)
-        .height(56)
-        .enabled(!this.isBusy())
-        .backgroundColor(this.isRunning() ? '#F97910' : '#9CA3AF')
-        .borderRadius(28)
-        .shadow(this.isRunning() ? 
-          { radius: 14, color: '#40F97910', offsetX: 0, offsetY: 6 } :
-          { radius: 8, color: '#20000000', offsetX: 0, offsetY: 3 })
+        .width(108)
+        .height(108)
+        .borderRadius(54)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .backgroundColor(this.isRunning() ? AppColor.brand : AppColor.surface)
+        .border(this.isRunning() ? { width: 0 } : { width: 1.5, color: AppColor.border })
+        .shadow(this.isRunning()
+          ? { radius: Elevation.glow, color: AppColor.shadowBrand, offsetX: 0, offsetY: 8 }
+          : { radius: Elevation.card, color: AppColor.shadowCard, offsetX: 0, offsetY: 4 })
         .onClick(() => {
+          if (this.isBusy()) {
+            return;
+          }
           if (this.isRunning()) {
             this.stopConnection();
           } else {
@@ -269,76 +273,77 @@ struct Index {
           }
         })
       }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
+      .margin({ top: Space.xs })
 
-      Divider()
-        .color('#F3F4F6')
-        .strokeWidth(1)
-        .margin({ top: 16, bottom: 16 })
+      // 状态文案
+      Column({ space: Space.xs }) {
+        Text(this.statusLabel())
+          .fontSize(FontSz.title)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.isRunning() ? AppColor.brand : AppColor.textPrimary)
+        Text(this.isRunning() ? `${this.t('home.connectedTest')} · ${this.elapsedText}` : this.heroSubText())
+          .fontSize(FontSz.footnote)
+          .fontColor(AppColor.textSecondary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .alignItems(HorizontalAlign.Center)
 
-      Row({ space: 16 }) {
-        Row({ space: 10 }) {
-          Column() {
-            Image($r('app.media.ic_arrow_upward'))
-              .width(14)
-              .height(14)
-              .fillColor('#F97910')
-          }
-          .width(26)
-          .height(26)
-          .borderRadius(13)
-          .backgroundColor('#FFF7ED')
-          .justifyContent(FlexAlign.Center)
-          .alignItems(HorizontalAlign.Center)
-
-          Column({ space: 2 }) {
-            Text(this.language === 'zh' ? '本次上传' : 'Upload')
-              .fontSize(11)
-              .fontColor('#9CA3AF')
-            Text(this.formatBytes(this.stats.uploadBytes))
-              .fontSize(14)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#374151')
-          }
-          .alignItems(HorizontalAlign.Start)
-        }
-        .layoutWeight(1)
-
-        Row({ space: 10 }) {
-          Column() {
-            Image($r('app.media.ic_arrow_downward'))
-              .width(14)
-              .height(14)
-              .fillColor('#10B981')
-          }
-          .width(26)
-          .height(26)
-          .borderRadius(13)
-          .backgroundColor('#ECFDF5')
-          .justifyContent(FlexAlign.Center)
-          .alignItems(HorizontalAlign.Center)
-
-          Column({ space: 2 }) {
-            Text(this.language === 'zh' ? '本次下载' : 'Download')
-              .fontSize(11)
-              .fontColor('#9CA3AF')
-            Text(this.formatBytes(this.stats.downloadBytes))
-              .fontSize(14)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#374151')
-          }
-          .alignItems(HorizontalAlign.Start)
-        }
-        .layoutWeight(1)
+      // 上下行流量胶囊
+      Row({ space: Space.md }) {
+        this.TrafficPill($r('app.media.ic_arrow_upward'), AppColor.brand, AppColor.brandTint,
+          this.language === 'zh' ? '上传' : 'Upload', this.formatBytes(this.stats.uploadBytes))
+        this.TrafficPill($r('app.media.ic_arrow_downward'), AppColor.success, AppColor.successTint,
+          this.language === 'zh' ? '下载' : 'Download', this.formatBytes(this.stats.downloadBytes))
       }
       .width('100%')
     }
-    .padding(18)
-    .margin({ left: 16, right: 16, top: 12, bottom: 12 })
-    .backgroundColor('#FFFFFF')
-    .borderRadius(16)
-    .shadow({ radius: 8, color: '#08000000', offsetX: 0, offsetY: 3 })
+    .width('100%')
+    .padding(Space.xl)
+    .margin({ left: Space.lg, right: Space.lg, top: Space.md, bottom: Space.md })
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.xl)
+    .shadow({ radius: Elevation.card, color: AppColor.shadowCard, offsetX: 0, offsetY: 4 })
+  }
+
+  @Builder
+  private TrafficPill(icon: Resource, iconColor: ResourceColor, iconBg: ResourceColor, label: string, value: string) {
+    Row({ space: Space.sm }) {
+      Column() {
+        Image(icon)
+          .width(14)
+          .height(14)
+          .fillColor(iconColor)
+      }
+      .width(28)
+      .height(28)
+      .borderRadius(14)
+      .backgroundColor(iconBg)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+
+      Column({ space: 2 }) {
+        Text(label)
+          .fontSize(FontSz.caption)
+          .fontColor(AppColor.textTertiary)
+        Text(value)
+          .fontSize(FontSz.body)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(AppColor.textPrimary)
+      }
+      .alignItems(HorizontalAlign.Start)
+    }
+    .layoutWeight(1)
+    .padding({ left: Space.md, right: Space.md, top: Space.md, bottom: Space.md })
+    .backgroundColor(AppColor.surfaceAlt)
+    .borderRadius(Radius.md)
+  }
+
+  private heroSubText(): string {
+    if (this.selectedNodeId.length > 0) {
+      return this.findSelectedNodeName();
+    }
+    return this.language === 'zh' ? '准备就绪' : 'Ready';
   }
 
   private formatBytes(bytes: number): string {
@@ -387,43 +392,47 @@ struct Index {
       }
     }
     .width('100%')
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.lg)
+    .clip(true)
+    .margin({ left: Space.lg, right: Space.lg, bottom: Space.lg })
   }
 
   @Builder
   private EmptyStateUI() {
-    Column({ space: 24 }) {
-      Column({ space: 12 }) {
+    Column({ space: Space.xxl }) {
+      Column({ space: Space.md }) {
         Image($r('app.media.ic_subscriptions'))
           .width(80)
           .height(80)
-          .fillColor('#E5E7EB')
-        
+          .fillColor(AppColor.textTertiary)
+          .opacity(0.5)
+
         Text('探索 Hey VPN')
-          .fontSize(20)
+          .fontSize(FontSz.title)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#1F2937')
-          .margin({ top: 8 })
+          .fontColor(AppColor.textPrimary)
+          .margin({ top: Space.sm })
 
         Text('开启安全、自由的网络连接。请先添加订阅分组以同步您的服务器节点。')
-          .fontSize(14)
-          .fontColor('#9CA3AF')
+          .fontSize(FontSz.body)
+          .fontColor(AppColor.textTertiary)
           .textAlign(TextAlign.Center)
-          .padding({ left: 32, right: 32 })
+          .padding({ left: Space.xxxl, right: Space.xxxl })
           .lineHeight(20)
       }
       .alignItems(HorizontalAlign.Center)
       .width('100%')
 
-      Column({ space: 12 }) {
+      Column({ space: Space.md }) {
         Button('添加订阅分组')
           .width(200)
           .height(44)
-          .backgroundColor('#F97910')
-          .fontColor('#FFFFFF')
+          .backgroundColor(AppColor.brand)
+          .fontColor(AppColor.onBrand)
           .fontWeight(FontWeight.Bold)
-          .borderRadius(22)
-          .shadow({ radius: 8, color: '#30F97910', offsetX: 0, offsetY: 4 })
+          .borderRadius(Radius.pill)
+          .shadow({ radius: Elevation.card, color: AppColor.shadowBrand, offsetX: 0, offsetY: 4 })
           .onClick(() => {
             this.openRoute(AppRoute.SUBSCRIPTIONS);
           })
@@ -431,10 +440,10 @@ struct Index {
         Button('手动配置 / 扫码导入')
           .width(200)
           .height(44)
-          .backgroundColor('#F3F4F6')
-          .fontColor('#4B5563')
+          .backgroundColor(AppColor.surfaceAlt)
+          .fontColor(AppColor.textSecondary)
           .fontWeight(FontWeight.Medium)
-          .borderRadius(22)
+          .borderRadius(Radius.pill)
           .onClick(() => {
             this.openRoute(AppRoute.IMPORT);
           })
@@ -447,29 +456,30 @@ struct Index {
 
   @Builder
   private EmptyGroupNodesUI() {
-    Column({ space: 20 }) {
+    Column({ space: Space.xl }) {
       Image($r('app.media.ic_cloud_download'))
         .width(72)
         .height(72)
-        .fillColor('#E5E7EB')
+        .fillColor(AppColor.textTertiary)
+        .opacity(0.5)
 
       Text('当前分组暂无节点')
-        .fontSize(16)
+        .fontSize(FontSz.headline)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#4B5563')
+        .fontColor(AppColor.textSecondary)
 
       Text('您可以尝试手动更新当前订阅以同步最新的节点列表。')
-        .fontSize(13)
-        .fontColor('#9CA3AF')
+        .fontSize(FontSz.footnote)
+        .fontColor(AppColor.textTertiary)
         .textAlign(TextAlign.Center)
         .padding({ left: 40, right: 40 })
 
       Button('更新当前订阅')
         .height(38)
-        .padding({ left: 24, right: 24 })
-        .backgroundColor('#F97910')
-        .fontColor('#FFFFFF')
-        .borderRadius(19)
+        .padding({ left: Space.xxl, right: Space.xxl })
+        .backgroundColor(AppColor.brand)
+        .fontColor(AppColor.onBrand)
+        .borderRadius(Radius.pill)
         .onClick(() => {
           this.updateSubscription();
         })
@@ -893,22 +903,22 @@ struct Index {
     return this.t('node.delay.pending');
   }
 
-  private nodeDelayColor(node: ProxyNode): string {
+  private nodeDelayColor(node: ProxyNode): ResourceColor {
     if (node.delayStatus === 'testing') {
-      return '#1D4ED8';
+      return AppColor.info;
     }
     if (node.delayMs >= 0) {
       if (node.delayMs <= 300) {
-        return '#166534';
+        return AppColor.success;
       }
       if (node.delayMs <= 900) {
-        return '#92400E';
+        return AppColor.warning;
       }
     }
     if (node.delayStatus.length > 0) {
-      return '#B42318';
+      return AppColor.danger;
     }
-    return '#6B7280';
+    return AppColor.textTertiary;
   }
 
   private delayResultText(result: DelayTestResult): string {
@@ -1078,40 +1088,43 @@ struct Index {
   @Builder
   private DrawerContent() {
     Column() {
-      Column({ space: 8 }) {
+      Column({ space: Space.sm }) {
         Text('Hey VPN')
-          .fontSize(22)
+          .fontSize(FontSz.display)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
-        
+          .fontColor(AppColor.onBrand)
+
         Text(this.isRunning() ? '服务正在运行' : '服务未连接')
-          .fontSize(14)
-          .fontColor('#FFEBE0')
+          .fontSize(FontSz.body)
+          .fontColor(AppColor.onBrand)
+          .opacity(0.9)
 
         if (this.selectedNodeId.length > 0) {
           Text('当前节点: ' + this.findSelectedNodeName())
-            .fontSize(12)
-            .fontColor('#FFEBE0')
+            .fontSize(FontSz.footnote)
+            .fontColor(AppColor.onBrand)
+            .opacity(0.85)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
       }
       .width('100%')
-      .padding({ left: 24, right: 24, top: 48, bottom: 24 })
+      .alignItems(HorizontalAlign.Start)
+      .padding({ left: Space.xxl, right: Space.xxl, top: 56, bottom: Space.xxl })
       .linearGradient({
         angle: 135,
-        colors: [['#FF8F3D', 0.0], ['#F97910', 1.0]]
+        colors: [[AppColor.brandStrong, 0.0], [AppColor.brand, 1.0]]
       })
 
       Scroll() {
-        Column({ space: 4 }) {
+        Column({ space: Space.xs }) {
           this.DrawerMenuItem('首页', $r('app.media.ic_menu'), () => {
             animateTo({ duration: 200, curve: Curve.EaseOut }, () => {
               this.showSideBar = false;
             })
           }, true)
 
-          Divider().color('#F3F4F6').strokeWidth(1).margin({ top: 4, bottom: 4 })
+          Divider().color(AppColor.divider).strokeWidth(1).margin({ top: Space.xs, bottom: Space.xs })
 
           this.DrawerMenuItem('添加配置', $r('app.media.ic_add'), () => {
             this.clickDrawerItem(AppRoute.IMPORT);
@@ -1150,7 +1163,7 @@ struct Index {
           })
         }
         .width('100%')
-        .padding({ left: 12, right: 12, top: 16, bottom: 24 })
+        .padding({ left: Space.md, right: Space.md, top: Space.lg, bottom: Space.xxl })
       }
       .layoutWeight(1)
       .width('100%')
@@ -1162,21 +1175,21 @@ struct Index {
 
   @Builder
   private DrawerMenuItem(title: string, icon: Resource, onClick: () => void, isSelected: boolean = false) {
-    Row({ space: 16 }) {
+    Row({ space: Space.lg }) {
       Image(icon)
         .width(22)
         .height(22)
-        .fillColor(isSelected ? '#F97910' : '#49454F')
+        .fillColor(isSelected ? AppColor.brand : AppColor.textSecondary)
       Text(title)
-        .fontSize(15)
+        .fontSize(FontSz.callout)
         .fontWeight(isSelected ? FontWeight.Medium : FontWeight.Regular)
-        .fontColor(isSelected ? '#F97910' : '#1C1B1F')
+        .fontColor(isSelected ? AppColor.brand : AppColor.textPrimary)
     }
     .width('100%')
     .height(48)
-    .padding({ left: 16, right: 16 })
-    .borderRadius(8)
-    .backgroundColor(isSelected ? '#FFF7ED' : '#00000000')
+    .padding({ left: Space.lg, right: Space.lg })
+    .borderRadius(Radius.sm)
+    .backgroundColor(isSelected ? AppColor.brandTint : Color.Transparent)
     .onClick(() => {
       onClick();
     })
