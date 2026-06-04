@@ -7,6 +7,8 @@ export interface SettingsDraft {
   sniffingEnabled: boolean;
   routeOnlyEnabled: boolean;
   perAppProxyEnabled: boolean;
+  perAppProxyList: string[];
+  perAppProxyBypass: boolean;
   localDnsEnabled: boolean;
   fakeDnsEnabled: boolean;
   muxEnabled: boolean;
@@ -37,6 +39,8 @@ export class SettingsController {
       sniffingEnabled: settings.sniffingEnabled,
       routeOnlyEnabled: settings.routeOnlyEnabled,
       perAppProxyEnabled: settings.perAppProxyEnabled,
+      perAppProxyList: settings.perAppProxyList ?? [],
+      perAppProxyBypass: settings.perAppProxyBypass ?? true,
       localDnsEnabled: settings.localDnsEnabled,
       fakeDnsEnabled: settings.fakeDnsEnabled,
       muxEnabled: settings.muxEnabled,
@@ -59,6 +63,8 @@ export class SettingsController {
       sniffingEnabled: draft.sniffingEnabled,
       routeOnlyEnabled: draft.routeOnlyEnabled,
       perAppProxyEnabled: draft.perAppProxyEnabled,
+      perAppProxyList: draft.perAppProxyList,
+      perAppProxyBypass: draft.perAppProxyBypass,
       localDnsEnabled: draft.localDnsEnabled,
       fakeDnsEnabled: draft.fakeDnsEnabled,
       appendHttpProxy: DEFAULT_APP_SETTINGS.appendHttpProxy,

@@ -9,6 +9,7 @@ import {
   VPN_COMMAND_STOP,
   VPN_MTU
 } from './VpnConstants';
+import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import {
   getNativeStats,
   setNativeTunFd,
@@ -69,7 +70,11 @@ export default class HeyVpnAbility extends VpnExtensionAbility {
 
       this.vpnConnection = vpnExtension.createVpnConnection(this.context);
       this.emitInfo('Creating VPN connection.');
-      this.tunFd = await this.vpnConnection.create(createDefaultVpnConfig());
+      const settings = await SETTINGS_CONTROLLER.load(this.context);
+      const perAppEnabled = settings.perAppProxyEnabled;
+      const bypassMode = settings.perAppProxyBypass ?? true;
+      const appList = settings.perAppProxyList ?? [];
+      this.tunFd = await this.vpnConnection.create(createDefaultVpnConfig(perAppEnabled, bypassMode, appList));
       this.emitInfo('VPN created.', `tunFd=${this.tunFd}`);
 
       const tunResult = setNativeTunFd(this.tunFd);

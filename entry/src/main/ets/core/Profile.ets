@@ -59,6 +59,8 @@ export interface AppSettings {
   sniffingEnabled: boolean;
   routeOnlyEnabled: boolean;
   perAppProxyEnabled: boolean;
+  perAppProxyList: string[];
+  perAppProxyBypass: boolean;
   localDnsEnabled: boolean;
   fakeDnsEnabled: boolean;
   appendHttpProxy: boolean;

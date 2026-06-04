@@ -33,6 +33,8 @@ struct SettingsPage {
   @State private trafficMode: string = 'rules';
   @State private routingStrategy: string = 'AsIs';
   @State private lastError: string = '';
+  @State private perAppProxyList: string[] = [];
+  @State private perAppProxyBypass: boolean = true;
 
   aboutToAppear(): void {
     this.loadState();
@@ -240,6 +242,8 @@ struct SettingsPage {
       sniffingEnabled: this.settingSniffing,
       routeOnlyEnabled: this.settingRouteOnly,
       perAppProxyEnabled: this.settingPerAppProxy,
+      perAppProxyList: this.perAppProxyList,
+      perAppProxyBypass: this.perAppProxyBypass,
       localDnsEnabled: this.settingLocalDns,
       fakeDnsEnabled: this.settingFakeDns,
       muxEnabled: this.settingMux,
@@ -261,6 +265,8 @@ struct SettingsPage {
     this.settingSniffing = draft.sniffingEnabled;
     this.settingRouteOnly = draft.routeOnlyEnabled;
     this.settingPerAppProxy = draft.perAppProxyEnabled;
+    this.perAppProxyList = draft.perAppProxyList ?? [];
+    this.perAppProxyBypass = draft.perAppProxyBypass ?? true;
     this.settingLocalDns = draft.localDnsEnabled;
     this.settingFakeDns = draft.fakeDnsEnabled;
     this.settingMux = draft.muxEnabled;

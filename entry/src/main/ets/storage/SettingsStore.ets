@@ -11,6 +11,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   sniffingEnabled: true,
   routeOnlyEnabled: false,
   perAppProxyEnabled: false,
+  perAppProxyList: [],
+  perAppProxyBypass: true,
   localDnsEnabled: false,
   fakeDnsEnabled: false,
   appendHttpProxy: false,
@@ -74,6 +76,8 @@ export class SettingsStore {
       sniffingEnabled: SettingsStore.boolValue(raw.sniffingEnabled, base.sniffingEnabled),
       routeOnlyEnabled: SettingsStore.boolValue(raw.routeOnlyEnabled, base.routeOnlyEnabled),
       perAppProxyEnabled: SettingsStore.boolValue(raw.perAppProxyEnabled, base.perAppProxyEnabled),
+      perAppProxyList: SettingsStore.arrayValue(raw.perAppProxyList, base.perAppProxyList),
+      perAppProxyBypass: SettingsStore.boolValue(raw.perAppProxyBypass, base.perAppProxyBypass),
       localDnsEnabled: SettingsStore.boolValue(raw.localDnsEnabled, base.localDnsEnabled),
       fakeDnsEnabled: SettingsStore.boolValue(raw.fakeDnsEnabled, base.fakeDnsEnabled),
       appendHttpProxy: SettingsStore.boolValue(raw.appendHttpProxy, base.appendHttpProxy),
@@ -133,5 +137,9 @@ export class SettingsStore {
       return value;
     }
     return fallback;
+  }
+
+  private static arrayValue(value: string[] | undefined, fallback: string[]): string[] {
+    return Array.isArray(value) ? value : fallback;
   }
 }
