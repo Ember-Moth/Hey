@@ -1,14 +1,13 @@
 import { common } from '@kit.AbilityKit';
-import { bundleManager } from '@kit.AbilityKit';
-import { ActionListItem } from '../components/ActionListItem';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage } from '../core/Profile';
 import { SettingToggleRow } from '../features/settings/SettingsControls';
 import { SETTINGS_CONTROLLER, SettingsDraft } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
+import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
-import { AppColor } from '../theme/Theme';
+import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 
 interface AppItem {
   bundleName: string;
@@ -109,265 +108,315 @@ struct PerAppPage {
         showBack: true
       })
 
-      // 总开关与黑白名单模式选择
-      Column({ space: 10 }) {
-        // 分应用代理主开关
-        SettingToggleRow({
-          title: this.t('settings.perAppProxy'),
-          settingKey: 'pref_per_app_proxy',
-          isEnabled: this.perAppProxyEnabled,
-          action: 'perApp',
-          onLabel: this.t('action.on'),
-          offLabel: this.t('action.off'),
-          onToggle: (_action: string) => {
-            this.perAppProxyEnabled = !this.perAppProxyEnabled;
-            this.saveSettings();
-          }
-        })
-
-        if (this.perAppProxyEnabled) {
-          // 黑白名单模式选项 (Radio组合)
-          Column() {
-            Text("过滤策略模式")
-              .fontSize(14)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(AppColor.textPrimary)
-              .width('100%')
-              .margin({ bottom: 8 })
-
-            Row({ space: 24 }) {
-              Row({ space: 6 }) {
-                Radio({ value: 'bypass', group: 'proxy_mode' })
-                  .checked(this.perAppProxyBypass)
-                  .onChange((isChecked: boolean) => {
-                    if (isChecked) {
-                      this.perAppProxyBypass = true;
-                      this.saveSettings();
-                    }
-                  })
-                Text("仅绕过所选 (黑名单)")
-                  .fontSize(14)
-                  .fontColor(this.perAppProxyBypass ? AppColor.brand : AppColor.textSecondary)
-                  .onClick(() => {
-                    this.perAppProxyBypass = true;
-                    this.saveSettings();
-                  })
-              }
-
-              Row({ space: 6 }) {
-                Radio({ value: 'proxy', group: 'proxy_mode' })
-                  .checked(!this.perAppProxyBypass)
-                  .onChange((isChecked: boolean) => {
-                    if (isChecked) {
-                      this.perAppProxyBypass = false;
-                      this.saveSettings();
-                    }
-                  })
-                Text("仅代理所选 (白名单)")
-                  .fontSize(14)
-                  .fontColor(!this.perAppProxyBypass ? AppColor.brand : AppColor.textSecondary)
-                  .onClick(() => {
-                    this.perAppProxyBypass = false;
-                    this.saveSettings();
-                  })
-              }
-            }
-            .width('100%')
-            .padding({ left: 4 })
-          }
-          .backgroundColor(AppColor.surface)
-          .borderRadius(8)
-          .padding(12)
-          .width('100%')
-        }
-      }
-      .padding({ left: 14, right: 14, top: 10, bottom: 4 })
-      .width('100%')
-
       if (this.perAppProxyEnabled) {
-        // 过滤区与快捷按钮
-        Row() {
-          // 搜索框
-          Search({ placeholder: '搜索应用名称或包名...', value: this.searchQuery })
-            .onChange((val: string) => {
-              this.searchQuery = val;
-            })
-            .layoutWeight(1)
-            .height(36)
-
-          // 过滤系统应用开关
-          Row({ space: 4 }) {
-            Checkbox({ name: 'system_toggle', group: 'filter' })
-              .select(this.showSystemApps)
-              .width(18)
-              .height(18)
-              .onChange((selected: boolean) => {
-                this.showSystemApps = selected;
-              })
-            Text("系统应用")
-              .fontSize(12)
-              .fontColor(AppColor.textSecondary)
+        Scroll() {
+          Column({ space: Space.lg }) {
+            this.MainToggleGroup()
+            this.ModeGroup()
+            this.AppListGroup()
+            this.ManualAddGroup()
           }
-          .margin({ left: 10 })
-        }
-        .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-        .width('100%')
-
-        // 快捷全选反选操作
-        Row({ space: 16 }) {
-          Button("全部全选", { type: ButtonType.Capsule })
-            .backgroundColor(AppColor.surfaceAlt)
-            .fontColor(AppColor.brand)
-            .fontSize(12)
-            .height(26)
-            .onClick(() => {
-              const filtered = this.getFilteredApps().map(app => app.bundleName);
-              const merged = Array.from(new Set([...this.perAppProxyList, ...filtered]));
-              this.perAppProxyList = merged;
-              this.saveSettings();
-            })
-
-          Button("全部清除", { type: ButtonType.Capsule })
-            .backgroundColor(AppColor.surfaceAlt)
-            .fontColor(AppColor.danger)
-            .fontSize(12)
-            .height(26)
-            .onClick(() => {
-              const filtered = this.getFilteredApps().map(app => app.bundleName);
-              this.perAppProxyList = this.perAppProxyList.filter(pkg => !filtered.includes(pkg));
-              this.saveSettings();
-            })
-
-          Text(`已选: ${this.perAppProxyList.length} 个应用`)
-            .fontSize(12)
-            .fontColor(AppColor.textSecondary)
-            .layoutWeight(1)
-            .textAlign(TextAlign.End)
-        }
-        .padding({ left: 16, right: 16, top: 4, bottom: 6 })
-        .width('100%')
-
-        // 核心应用列表滚动区
-        List({ space: 8 }) {
-          ForEach(this.getFilteredApps(), (app: AppItem) => {
-            ListItem() {
-              Row() {
-                // 圆形应用图标占位区
-                Row() {
-                  Text(app.label.charAt(0))
-                    .fontSize(16)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor(AppColor.onBrand)
-                }
-                .width(40)
-                .height(40)
-                .borderRadius(20)
-                .backgroundColor(app.isSystem ? AppColor.textTertiary : AppColor.brand)
-                .justifyContent(FlexAlign.Center)
-                .alignItems(VerticalAlign.Center)
-                .margin({ right: 12 })
-
-                // 标签和包名信息
-                Column() {
-                  Text(app.label)
-                    .fontSize(15)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor(AppColor.textPrimary)
-                    .margin({ bottom: 2 })
-                  Text(app.bundleName)
-                    .fontSize(11)
-                    .fontColor(AppColor.textTertiary)
-                }
-                .alignItems(HorizontalAlign.Start)
-                .layoutWeight(1)
-
-                // 选中多选框
-                Checkbox({ name: app.bundleName, group: 'apps' })
-                  .select(this.perAppProxyList.includes(app.bundleName))
-                  .onChange((selected: boolean) => {
-                    if (selected) {
-                      if (!this.perAppProxyList.includes(app.bundleName)) {
-                        this.perAppProxyList.push(app.bundleName);
-                      }
-                    } else {
-                      this.perAppProxyList = this.perAppProxyList.filter(pkg => pkg !== app.bundleName);
-                    }
-                    this.saveSettings();
-                  })
-              }
-              .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-              .backgroundColor(AppColor.surface)
-              .borderRadius(8)
-              .width('100%')
-            }
-          }, (item: AppItem) => item.bundleName)
+          .width('100%')
+          .padding({ top: Space.sm, bottom: Space.xxl })
         }
         .layoutWeight(1)
-        .width('100%')
-        .padding({ left: 14, right: 14 })
-
-        // 底部手动录入追加区（解决包名枚举限制）
-        Column() {
-          Divider().color(AppColor.divider).margin({ bottom: 8 })
-          Text("手动添加未列出的应用包名")
-            .fontSize(12)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(AppColor.textSecondary)
-            .width('100%')
-            .margin({ bottom: 6 })
-
-          Row({ space: 8 }) {
-            InputLabelPair({
-              placeholder: '应用名称 (如: 百度地图)',
-              text: this.newCustomLabel,
-              onChange: (v: string) => { this.newCustomLabel = v; }
-            }).layoutWeight(1)
-
-            InputLabelPair({
-              placeholder: '应用包名 (如: com.baidu.BaiduMap)',
-              text: this.newCustomPackage,
-              onChange: (v: string) => { this.newCustomPackage = v; }
-            }).layoutWeight(1.5)
-
-            Button("添加")
-              .height(36)
-              .fontSize(13)
-              .backgroundColor(AppColor.brand)
-              .onClick(() => {
-                this.addCustomPackage();
-              })
-          }
-          .width('100%')
-        }
-        .backgroundColor(AppColor.bg)
-        .padding({ left: 14, right: 14, bottom: 12, top: 4 })
         .width('100%')
       } else {
-        // 未开启分应用代理时的占位符
-        Column({ space: 16 }) {
-          Image($r('app.media.ic_apps')) // 使用已有的分应用代理大图标
-            .width(64)
-            .height(64)
-            .opacity(0.3)
-          Text("分应用代理已关闭")
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(AppColor.textTertiary)
-          Text("当前所有应用的流量均会默认经过虚拟网卡代理，您可以在上方开启该功能进行按应用精准分流。")
-            .fontSize(13)
-            .fontColor(AppColor.textTertiary)
-            .textAlign(TextAlign.Center)
-            .width('80%')
-            .lineHeight(18)
+        Column({ space: Space.lg }) {
+          this.MainToggleGroup()
         }
-        .layoutWeight(1)
         .width('100%')
-        .justifyContent(FlexAlign.Center)
+        .padding({ top: Space.sm })
+
+        this.DisabledPlaceholder()
       }
     }
     .height('100%')
     .width('100%')
     .backgroundColor(AppColor.bg)
+  }
+
+  @Builder
+  private RowDivider() {
+    Divider()
+      .strokeWidth(0.5)
+      .color(AppColor.divider)
+      .margin({ left: Space.lg })
+  }
+
+  @Builder
+  private MainToggleGroup() {
+    SectionHeader({ title: this.t('settings.perAppProxy') })
+    Column() {
+      SettingToggleRow({
+        title: this.t('settings.perAppProxy'),
+        settingKey: '',
+        isEnabled: this.perAppProxyEnabled,
+        action: 'perApp',
+        onLabel: this.t('action.on'),
+        offLabel: this.t('action.off'),
+        onToggle: (_action: string) => {
+          this.perAppProxyEnabled = !this.perAppProxyEnabled;
+          this.saveSettings();
+        }
+      })
+    }
+    .width('100%')
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.lg)
+    .clip(true)
+    .margin({ left: Space.lg, right: Space.lg })
+  }
+
+  @Builder
+  private ModeGroup() {
+    SectionHeader({ title: '过滤策略' })
+    Column() {
+      this.ModeRow(true, this.t('perApp.bypassSelected.title'), this.t('perApp.bypassSelected.detail'))
+      this.RowDivider()
+      this.ModeRow(false, this.t('perApp.proxySelected.title'), this.t('perApp.proxySelected.detail'))
+      this.RowDivider()
+      this.SystemVisibilityRow()
+    }
+    .width('100%')
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.lg)
+    .clip(true)
+    .margin({ left: Space.lg, right: Space.lg })
+  }
+
+  @Builder
+  private ModeRow(bypass: boolean, title: string, detail: string) {
+    Row({ space: Space.md }) {
+      Column({ space: 3 }) {
+        Text(title)
+          .fontSize(FontSz.callout)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.perAppProxyBypass === bypass ? AppColor.brand : AppColor.textPrimary)
+        Text(detail)
+          .fontSize(FontSz.footnote)
+          .fontColor(AppColor.textTertiary)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      if (this.perAppProxyBypass === bypass) {
+        Image($r('app.media.ic_check'))
+          .width(20)
+          .height(20)
+          .fillColor(AppColor.brand)
+      }
+    }
+    .width('100%')
+    .padding(Space.lg)
+    .onClick(() => {
+      if (this.perAppProxyBypass !== bypass) {
+        this.perAppProxyBypass = bypass;
+        this.saveSettings();
+      }
+    })
+  }
+
+  @Builder
+  private SystemVisibilityRow() {
+    Row({ space: Space.md }) {
+      Column({ space: 3 }) {
+        Text(this.t('perApp.systemVisibility.title'))
+          .fontSize(FontSz.callout)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppColor.textPrimary)
+        Text(this.t('perApp.systemVisibility.detail'))
+          .fontSize(FontSz.footnote)
+          .fontColor(AppColor.textTertiary)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Toggle({ type: ToggleType.Switch, isOn: this.showSystemApps })
+        .selectedColor(AppColor.brand)
+        .switchPointColor(AppColor.onBrand)
+        .onChange((isOn: boolean) => {
+          this.showSystemApps = isOn;
+        })
+    }
+    .width('100%')
+    .padding(Space.lg)
+  }
+
+  @Builder
+  private AppListGroup() {
+    SectionHeader({
+      title: '应用列表',
+      detail: `已选 ${this.perAppProxyList.length} 个应用`
+    })
+
+    // 搜索栏（分组背景上的独立搜索条）
+    Search({ placeholder: '搜索应用名称或包名', value: this.searchQuery })
+      .height(40)
+      .backgroundColor(AppColor.surface)
+      .placeholderColor(AppColor.textTertiary)
+      .margin({ left: Space.lg, right: Space.lg })
+      .onChange((val: string) => {
+        this.searchQuery = val;
+      })
+
+    Column() {
+      // 全选 / 清除 操作行
+      Row({ space: Space.lg }) {
+        Text('全选')
+          .fontSize(FontSz.body)
+          .fontColor(AppColor.brand)
+          .onClick(() => {
+            const filtered = this.getFilteredApps().map(app => app.bundleName);
+            this.perAppProxyList = Array.from(new Set([...this.perAppProxyList, ...filtered]));
+            this.saveSettings();
+          })
+        Text('清除')
+          .fontSize(FontSz.body)
+          .fontColor(AppColor.danger)
+          .onClick(() => {
+            const filtered = this.getFilteredApps().map(app => app.bundleName);
+            this.perAppProxyList = this.perAppProxyList.filter(pkg => !filtered.includes(pkg));
+            this.saveSettings();
+          })
+        Blank()
+      }
+      .width('100%')
+      .padding(Space.lg)
+
+      ForEach(this.getFilteredApps(), (app: AppItem) => {
+        this.RowDivider()
+        this.AppRow(app)
+      }, (item: AppItem) => item.bundleName)
+    }
+    .width('100%')
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.lg)
+    .clip(true)
+    .margin({ left: Space.lg, right: Space.lg })
+  }
+
+  @Builder
+  private AppRow(app: AppItem) {
+    Row({ space: Space.md }) {
+      // 圆形应用图标占位区
+      Row() {
+        Text(app.label.charAt(0))
+          .fontSize(FontSz.headline)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(AppColor.onBrand)
+      }
+      .width(40)
+      .height(40)
+      .borderRadius(20)
+      .backgroundColor(app.isSystem ? AppColor.textTertiary : AppColor.brand)
+      .justifyContent(FlexAlign.Center)
+
+      Column({ space: 3 }) {
+        Text(app.label)
+          .fontSize(FontSz.callout)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppColor.textPrimary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(app.bundleName)
+          .fontSize(FontSz.caption)
+          .fontColor(AppColor.textTertiary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Checkbox({ name: app.bundleName, group: 'apps' })
+        .selectedColor(AppColor.brand)
+        .select(this.perAppProxyList.includes(app.bundleName))
+        .onChange((selected: boolean) => {
+          if (selected) {
+            if (!this.perAppProxyList.includes(app.bundleName)) {
+              this.perAppProxyList.push(app.bundleName);
+            }
+          } else {
+            this.perAppProxyList = this.perAppProxyList.filter(pkg => pkg !== app.bundleName);
+          }
+          this.saveSettings();
+        })
+    }
+    .width('100%')
+    .padding(Space.lg)
+  }
+
+  @Builder
+  private ManualAddGroup() {
+    SectionHeader({ title: '手动添加', detail: '添加未列出的应用包名' })
+    Column() {
+      TextInput({ placeholder: '应用名称 (如：百度地图)', text: this.newCustomLabel })
+        .fontSize(FontSz.body)
+        .height(48)
+        .width('100%')
+        .fontColor(AppColor.textPrimary)
+        .placeholderColor(AppColor.textTertiary)
+        .backgroundColor(Color.Transparent)
+        .borderRadius(0)
+        .padding({ left: Space.lg, right: Space.lg })
+        .onChange((v: string) => {
+          this.newCustomLabel = v;
+        })
+      this.RowDivider()
+      TextInput({ placeholder: '应用包名 (如：com.baidu.BaiduMap)', text: this.newCustomPackage })
+        .fontSize(FontSz.body)
+        .height(48)
+        .width('100%')
+        .fontColor(AppColor.textPrimary)
+        .placeholderColor(AppColor.textTertiary)
+        .backgroundColor(Color.Transparent)
+        .borderRadius(0)
+        .padding({ left: Space.lg, right: Space.lg })
+        .onChange((v: string) => {
+          this.newCustomPackage = v;
+        })
+    }
+    .width('100%')
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.lg)
+    .clip(true)
+    .margin({ left: Space.lg, right: Space.lg })
+
+    Button('添加到列表')
+      .height(46)
+      .width('100%')
+      .backgroundColor(AppColor.brand)
+      .fontColor(AppColor.onBrand)
+      .fontWeight(FontWeight.Medium)
+      .borderRadius(Radius.pill)
+      .margin({ left: Space.lg, right: Space.lg, top: Space.sm })
+      .onClick(() => {
+        this.addCustomPackage();
+      })
+  }
+
+  @Builder
+  private DisabledPlaceholder() {
+    Column({ space: Space.lg }) {
+      Image($r('app.media.ic_apps'))
+        .width(64)
+        .height(64)
+        .fillColor(AppColor.textTertiary)
+        .opacity(0.3)
+      Text('分应用代理已关闭')
+        .fontSize(FontSz.headline)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(AppColor.textTertiary)
+      Text('当前所有应用的流量均会默认经过虚拟网卡代理，开启后可按应用精准分流。')
+        .fontSize(FontSz.body)
+        .fontColor(AppColor.textTertiary)
+        .textAlign(TextAlign.Center)
+        .width('80%')
+        .lineHeight(20)
+    }
+    .layoutWeight(1)
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
   }
 
   // 手动新增包名逻辑
@@ -433,26 +482,5 @@ struct PerAppPage {
 
   private f1(key: string, name: string, value: string): string {
     return formatOne(this.language, key, name, value);
-  }
-}
-
-// 提取 of 辅助文本输入框组件，保证 UI 渲染效率和解耦
-@Component
-struct InputLabelPair {
-  placeholder: string = '';
-  @Link text: string;
-  onChange: (v: string) => void = () => {};
-
-  build() {
-    TextInput({ placeholder: this.placeholder, text: this.text })
-      .fontSize(12)
-      .height(36)
-      .placeholderColor(AppColor.textTertiary)
-      .backgroundColor(AppColor.surface)
-      .borderRadius(6)
-      .onChange((v: string) => {
-        this.text = v;
-        this.onChange(v);
-      })
   }
 }
