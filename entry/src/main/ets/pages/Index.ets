@@ -14,7 +14,7 @@ import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { RuntimeViewState, SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { SUBSCRIPTIONS_CONTROLLER, SubscriptionsControllerState } from '../features/subscriptions/SubscriptionsController';
 import { AppRoute } from '../shell/AppRoute';
-import { formatOne, formatTwo, localizeCoreMessage } from '../utils/LocalizationPresenter';
+import { formatOne, formatTwo } from '../utils/LocalizationPresenter';
 import { AppColor, Elevation, FontSz, Radius, Space } from '../theme/Theme';
 
 const EMPTY_STATS: RuntimeStats = {
@@ -30,8 +30,10 @@ const EMPTY_STATS: RuntimeStats = {
 struct Index {
   private timerId: number = -1;
   private currentSettings: AppSettings = DEFAULT_APP_SETTINGS;
+  private tabsController: TabsController = new TabsController();
 
-  @State private showSideBar: boolean = false;
+  @State private currentTab: number = 0;
+  @State private showSearch: boolean = false;
   @State private language: AppLanguage = DEFAULT_LANGUAGE;
   @State private outboundJson: string = '';
   @State private validationMessage: string = translate(DEFAULT_LANGUAGE, 'validation.initial');
@@ -70,142 +72,395 @@ struct Index {
     }
   }
 
+  onPageShow(): void {
+    // 从订阅 / 导入等子页返回时，重新加载设置与节点，保证列表实时刷新
+    this.refreshFromStorage();
+  }
+
+  private async refreshFromStorage(): Promise<void> {
+    await this.loadSettings();
+    await this.loadNodes();
+  }
+
   build() {
-    Stack({ alignContent: Alignment.TopStart }) {
-      Column() {
-        this.HomeHeader()
-        
-        // 仪表盘卡片
-        this.DashboardCard()
-
-        if (this.lastError.length > 0) {
-          Text(this.lastError)
-            .fontSize(FontSz.footnote)
-            .fontColor(AppColor.danger)
-            .width('100%')
-            .padding({ left: Space.xxl, right: Space.xxl, top: Space.md, bottom: Space.md })
-            .backgroundColor(AppColor.dangerTint)
-        }
-
-        // 仅在有订阅分组时才显示 Tab 选项卡
-        if (this.subscriptionGroups.length > 0) {
-          this.GroupTabs()
-        }
-
-        Scroll() {
-          this.NodeList()
-        }
-        .layoutWeight(1)
-        .width('100%')
+    Tabs({ barPosition: BarPosition.End, index: this.currentTab, controller: this.tabsController }) {
+      TabContent() {
+        this.ConnectTab()
       }
-      .height('100%')
-      .width('100%')
-      .backgroundColor(AppColor.bg)
+      .tabBar(this.TabBarItem(this.t('tab.connect'), $r('app.media.ic_shield'), 0))
 
-      if (this.showSideBar) {
-        Column() {}
-          .width('100%')
-          .height('100%')
-          .backgroundColor(AppColor.scrim)
-          .transition({ opacity: 0 })
-          .onClick(() => {
-            animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
-              this.showSideBar = false;
-            })
-          })
+      TabContent() {
+        this.NodesTab()
       }
+      .tabBar(this.TabBarItem(this.t('tab.nodes'), $r('app.media.ic_globe'), 1))
 
-      Column() {
-        this.DrawerContent()
+      TabContent() {
+        this.SettingsTab()
       }
-      .width(280)
-      .height('100%')
-      .backgroundColor(AppColor.surface)
-      .position({ x: 0, y: 0 })
-      .translate({ x: this.showSideBar ? 0 : -280 })
-      .animation({ duration: 250, curve: Curve.EaseOut })
-      .shadow({ radius: 12, color: AppColor.scrim })
+      .tabBar(this.TabBarItem(this.t('tab.settings'), $r('app.media.ic_settings'), 2))
     }
-    .height('100%')
+    .barMode(BarMode.Fixed)
+    .scrollable(false)
+    .animationDuration(0)
+    .divider({ strokeWidth: 0.5, color: AppColor.divider })
+    .onChange((index: number) => {
+      this.currentTab = index;
+    })
+    .backgroundColor(AppColor.bg)
     .width('100%')
+    .height('100%')
   }
 
   @Builder
-  private HomeHeader() {
-    Row({ space: Space.sm }) {
-      IconButton({
-        icon: $r('app.media.ic_menu'),
-        buttonSize: 48,
-        iconSize: 28,
-        iconColor: AppColor.textSecondary,
-        onAction: () => {
-          animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
-            this.showSideBar = true;
-          })
-        }
-      })
-
-      Text(this.t('screen.servers.title'))
-        .fontSize(FontSz.title)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(AppColor.textPrimary)
-        .layoutWeight(1)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-      Column() {
-        Image($r('app.media.ic_more_vert'))
-          .width(26)
-          .height(26)
-          .fillColor(AppColor.textSecondary)
-      }
-      .width(48)
-      .height(48)
-      .justifyContent(FlexAlign.Center)
-      .alignItems(HorizontalAlign.Center)
-      .borderRadius(24)
-      .bindMenu(this.MoreMenuBuilder())
+  private TabBarItem(label: string, icon: Resource, index: number) {
+    Column({ space: 3 }) {
+      Image(icon)
+        .width(24)
+        .height(24)
+        .fillColor(this.currentTab === index ? AppColor.brand : AppColor.textTertiary)
+      Text(label)
+        .fontSize(FontSz.caption)
+        .fontWeight(this.currentTab === index ? FontWeight.Medium : FontWeight.Regular)
+        .fontColor(this.currentTab === index ? AppColor.brand : AppColor.textTertiary)
     }
     .width('100%')
-    .height(64)
-    .padding({ left: Space.md, right: Space.md })
+    .height(52)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tab 1 · 连接
+  // ---------------------------------------------------------------------------
+
+  @Builder
+  private ConnectTab() {
+    Column() {
+      // 大标题
+      Row() {
+        Text('Hey')
+          .fontSize(FontSz.display)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(AppColor.textPrimary)
+      }
+      .width('100%')
+      .padding({ left: Space.xxl, right: Space.xxl, top: Space.xxl, bottom: Space.sm })
+
+      if (this.lastError.length > 0) {
+        Text(this.lastError)
+          .fontSize(FontSz.footnote)
+          .fontColor(AppColor.danger)
+          .width('100%')
+          .padding({ left: Space.xxl, right: Space.xxl, top: Space.sm, bottom: Space.sm })
+          .backgroundColor(AppColor.dangerTint)
+          .margin({ left: Space.lg, right: Space.lg })
+          .borderRadius(Radius.md)
+      }
+
+      // 连接核心区（垂直居中）
+      Column({ space: Space.xl }) {
+        this.ConnectRing()
+
+        Column({ space: Space.xs }) {
+          Text(this.statusLabel())
+            .fontSize(FontSz.title)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.isRunning() ? AppColor.brand : AppColor.textPrimary)
+          Text(this.isRunning() ? this.elapsedText : this.t('home.ready'))
+            .fontSize(FontSz.footnote)
+            .fontColor(AppColor.textSecondary)
+        }
+        .alignItems(HorizontalAlign.Center)
+      }
+      .layoutWeight(1)
+      .width('100%')
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+
+      // 当前节点选择器
+      this.NodeSelectorRow()
+
+      // 流量 / 时长统计
+      this.StatsCard()
+    }
+    .width('100%')
+    .height('100%')
     .backgroundColor(AppColor.bg)
+  }
+
+  @Builder
+  private ConnectRing() {
+    Stack({ alignContent: Alignment.Center }) {
+      Circle()
+        .width(168)
+        .height(168)
+        .fill(this.isRunning() ? AppColor.brandTint : AppColor.surfaceAlt)
+        .opacity(this.isRunning() ? 1 : 0.6)
+
+      Column() {
+        if (this.isBusy()) {
+          LoadingProgress()
+            .width(44)
+            .height(44)
+            .color(this.isRunning() ? AppColor.onBrand : AppColor.brand)
+        } else {
+          Image(this.isRunning() ? $r('app.media.ic_stop') : $r('app.media.ic_play_arrow'))
+            .width(44)
+            .height(44)
+            .fillColor(this.isRunning() ? AppColor.onBrand : AppColor.brand)
+        }
+      }
+      .width(120)
+      .height(120)
+      .borderRadius(60)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+      .backgroundColor(this.isRunning() ? AppColor.brand : AppColor.surface)
+      .border(this.isRunning() ? { width: 0 } : { width: 1, color: AppColor.border })
+      .shadow(this.isRunning()
+        ? { radius: Elevation.glow, color: AppColor.shadowBrand, offsetX: 0, offsetY: 8 }
+        : { radius: Elevation.card, color: AppColor.shadowCard, offsetX: 0, offsetY: 4 })
+      .onClick(() => {
+        if (this.isBusy()) {
+          return;
+        }
+        if (this.isRunning()) {
+          this.stopConnection();
+        } else {
+          this.startConnection();
+        }
+      })
+    }
+  }
+
+  @Builder
+  private NodeSelectorRow() {
+    Row({ space: Space.md }) {
+      Column() {
+        Image($r('app.media.ic_globe'))
+          .width(20)
+          .height(20)
+          .fillColor(this.selectedNodeId.length > 0 ? AppColor.brand : AppColor.textTertiary)
+      }
+      .width(36)
+      .height(36)
+      .borderRadius(18)
+      .backgroundColor(this.selectedNodeId.length > 0 ? AppColor.brandTint : AppColor.surfaceAlt)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+
+      Column({ space: 2 }) {
+        Text(this.t('home.currentNode'))
+          .fontSize(FontSz.caption)
+          .fontColor(AppColor.textTertiary)
+        Text(this.selectedNodeId.length > 0 ? this.findSelectedNodeName() : this.t('home.noNodeSelected'))
+          .fontSize(FontSz.callout)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppColor.textPrimary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Image($r('app.media.ic_chevron_right'))
+        .width(20)
+        .height(20)
+        .fillColor(AppColor.textTertiary)
+    }
+    .width('100%')
+    .padding({ left: Space.lg, right: Space.lg, top: Space.md, bottom: Space.md })
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.lg)
+    .margin({ left: Space.lg, right: Space.lg, bottom: Space.md })
+    .onClick(() => {
+      this.tabsController.changeIndex(1);
+      this.currentTab = 1;
+    })
+  }
+
+  @Builder
+  private StatsCard() {
+    Row() {
+      this.StatCell(this.t('home.duration'), this.isRunning() ? this.elapsedText : '--', AppColor.textPrimary)
+      Divider().vertical(true).height(28).color(AppColor.divider)
+      this.StatCell(this.t('home.upload'), this.formatBytes(this.stats.uploadBytes), AppColor.brand)
+      Divider().vertical(true).height(28).color(AppColor.divider)
+      this.StatCell(this.t('home.download'), this.formatBytes(this.stats.downloadBytes), AppColor.success)
+    }
+    .width('100%')
+    .padding({ top: Space.md, bottom: Space.md })
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.lg)
+    .margin({ left: Space.lg, right: Space.lg, bottom: Space.xl })
+  }
+
+  @Builder
+  private StatCell(label: string, value: string, valueColor: ResourceColor) {
+    Column({ space: 4 }) {
+      Text(value)
+        .fontSize(FontSz.callout)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(valueColor)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text(label)
+        .fontSize(FontSz.caption)
+        .fontColor(AppColor.textTertiary)
+    }
+    .layoutWeight(1)
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tab 2 · 节点
+  // ---------------------------------------------------------------------------
+
+  @Builder
+  private NodesTab() {
+    Column() {
+      // 标题栏 / 搜索栏（就地切换）
+      this.NodesHeader()
+
+      if (this.subscriptionGroups.length > 0) {
+        this.GroupTabs()
+      }
+
+      if (this.subscriptionGroups.length === 0) {
+        Scroll() {
+          this.EmptyStateUI()
+        }
+        .layoutWeight(1)
+        .width('100%')
+      } else if (this.visibleNodes().length === 0) {
+        Scroll() {
+          this.EmptyGroupNodesUI()
+        }
+        .layoutWeight(1)
+        .width('100%')
+      } else {
+        this.NodeList()
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(AppColor.bg)
+  }
+
+  @Builder
+  private NodesHeader() {
+    if (this.showSearch) {
+      Row({ space: Space.sm }) {
+        Search({ value: this.searchQuery, placeholder: this.t('nodes.searchPlaceholder') })
+          .layoutWeight(1)
+          .height(40)
+          .backgroundColor(AppColor.surfaceAlt)
+          .placeholderColor(AppColor.textTertiary)
+          .onChange((value: string) => {
+            this.searchQuery = value;
+          })
+
+        Text(this.t('action.cancel'))
+          .fontSize(FontSz.callout)
+          .fontColor(AppColor.brand)
+          .onClick(() => {
+            animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
+              this.showSearch = false;
+              this.searchQuery = '';
+            })
+          })
+      }
+      .width('100%')
+      .padding({ left: Space.lg, right: Space.lg, top: Space.lg, bottom: Space.sm })
+    } else {
+      Row({ space: Space.xs }) {
+        Text(this.t('tab.nodes'))
+          .fontSize(FontSz.display)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(AppColor.textPrimary)
+          .layoutWeight(1)
+
+        IconButton({
+          icon: $r('app.media.ic_search'),
+          buttonSize: 44,
+          iconSize: 24,
+          iconColor: AppColor.textSecondary,
+          onAction: () => {
+            animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
+              this.showSearch = true;
+            })
+          }
+        })
+
+        Column() {
+          Image($r('app.media.ic_more_vert'))
+            .width(24)
+            .height(24)
+            .fillColor(AppColor.textSecondary)
+        }
+        .width(44)
+        .height(44)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .bindMenu(this.NodesMenu())
+      }
+      .width('100%')
+      .padding({ left: Space.xxl, right: Space.lg, top: Space.xxl, bottom: Space.sm })
+    }
+  }
+
+  @Builder
+  private NodesMenu() {
+    Menu() {
+      MenuItem({ content: this.t('menu.updateSubscription') })
+        .onClick(() => {
+          this.updateSubscription();
+        })
+      MenuItem({ content: this.t('menu.testTcping') })
+        .onClick(() => {
+          this.testVisibleNodeDelay();
+        })
+      MenuItem({ content: this.t('menu.deleteDuplicate') })
+        .onClick(() => {
+          this.dedupeNodes();
+        })
+      MenuItem({ content: this.t('menu.deleteInvalid') })
+        .onClick(() => {
+          this.removeInvalidNodes();
+        })
+      MenuItem({ content: this.t('menu.exportClipboard') })
+        .onClick(() => {
+          this.exportAllNodesToClipboard();
+        })
+      MenuItem({ content: this.t('menu.serviceRestart') })
+        .onClick(() => {
+          this.reconnectService();
+        })
+      MenuItem({ content: this.t('menu.locateSelected') })
+        .onClick(() => {
+          this.locateSelectedConfig();
+        })
+    }
   }
 
   @Builder
   private GroupTabs() {
-    Column() {
-      Row() {
-        Scroll() {
-          Row({ space: 12 }) {
-            ForEach(this.subscriptionGroups, (group: SubscriptionGroup) => {
-              this.GroupTab(group)
-            }, (group: SubscriptionGroup, index: number) => `${index}-${group.id}`)
-          }
-          .padding({ left: 16, right: 16 })
-          .height(44)
+    Row() {
+      Scroll() {
+        Row({ space: Space.sm }) {
+          ForEach(this.subscriptionGroups, (group: SubscriptionGroup) => {
+            this.GroupTab(group)
+          }, (group: SubscriptionGroup, index: number) => `${index}-${group.id}`)
         }
-        .layoutWeight(1)
-        .scrollable(ScrollDirection.Horizontal)
-        .scrollBar(BarState.Off)
-
-        IconButton({
-          icon: $r('app.media.ic_subscriptions'),
-          buttonSize: 44,
-          iconSize: 22,
-          iconColor: AppColor.textSecondary,
-          onAction: () => {
-            this.openRoute(AppRoute.SUBSCRIPTIONS);
-          }
-        })
-        .margin({ right: Space.lg })
+        .padding({ left: Space.lg, right: Space.lg })
+        .height(40)
       }
-      .width('100%')
-      .height(44)
-      .margin({ top: Space.sm, bottom: Space.sm })
+      .layoutWeight(1)
+      .scrollable(ScrollDirection.Horizontal)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
-    .backgroundColor(AppColor.bg)
+    .height(48)
   }
 
   @Builder
@@ -213,12 +468,12 @@ struct Index {
     Row() {
       Text(group.name.length > 0 ? group.name : 'Subscription')
         .fontSize(FontSz.body)
-        .fontWeight(group.id === this.selectedGroupId ? FontWeight.Bold : FontWeight.Medium)
+        .fontWeight(group.id === this.selectedGroupId ? FontWeight.Medium : FontWeight.Regular)
         .fontColor(group.id === this.selectedGroupId ? AppColor.onBrand : AppColor.textSecondary)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
-    .height(34)
+    .height(32)
     .padding({ left: Space.lg, right: Space.lg })
     .borderRadius(Radius.pill)
     .backgroundColor(group.id === this.selectedGroupId ? AppColor.brand : AppColor.surfaceAlt)
@@ -228,174 +483,69 @@ struct Index {
   }
 
   @Builder
-  private DashboardCard() {
-    Column({ space: Space.lg }) {
-      // 大号连接状态环
-      Stack({ alignContent: Alignment.Center }) {
-        // 外层光晕
-        Circle()
-          .width(140)
-          .height(140)
-          .fill(this.isRunning() ? AppColor.brandTint : AppColor.surfaceAlt)
-
-        // 主按钮
-        Column() {
-          if (this.isBusy()) {
-            LoadingProgress()
-              .width(40)
-              .height(40)
-              .color(this.isRunning() ? AppColor.onBrand : AppColor.brand)
-          } else {
-            Image(this.isRunning() ? $r('app.media.ic_stop') : $r('app.media.ic_play_arrow'))
-              .width(40)
-              .height(40)
-              .fillColor(this.isRunning() ? AppColor.onBrand : AppColor.brand)
-          }
-        }
-        .width(108)
-        .height(108)
-        .borderRadius(54)
-        .justifyContent(FlexAlign.Center)
-        .alignItems(HorizontalAlign.Center)
-        .backgroundColor(this.isRunning() ? AppColor.brand : AppColor.surface)
-        .border(this.isRunning() ? { width: 0 } : { width: 1.5, color: AppColor.border })
-        .shadow(this.isRunning()
-          ? { radius: Elevation.glow, color: AppColor.shadowBrand, offsetX: 0, offsetY: 8 }
-          : { radius: Elevation.card, color: AppColor.shadowCard, offsetX: 0, offsetY: 4 })
-        .onClick(() => {
-          if (this.isBusy()) {
-            return;
-          }
-          if (this.isRunning()) {
-            this.stopConnection();
-          } else {
-            this.startConnection();
-          }
-        })
-      }
-      .margin({ top: Space.xs })
-
-      // 状态文案
-      Column({ space: Space.xs }) {
-        Text(this.statusLabel())
-          .fontSize(FontSz.title)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.isRunning() ? AppColor.brand : AppColor.textPrimary)
-        Text(this.isRunning() ? `${this.t('home.connectedTest')} · ${this.elapsedText}` : this.heroSubText())
-          .fontSize(FontSz.footnote)
-          .fontColor(AppColor.textSecondary)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-      }
-      .alignItems(HorizontalAlign.Center)
-
-      // 上下行流量胶囊
-      Row({ space: Space.md }) {
-        this.TrafficPill($r('app.media.ic_arrow_upward'), AppColor.brand, AppColor.brandTint,
-          this.language === 'zh' ? '上传' : 'Upload', this.formatBytes(this.stats.uploadBytes))
-        this.TrafficPill($r('app.media.ic_arrow_downward'), AppColor.success, AppColor.successTint,
-          this.language === 'zh' ? '下载' : 'Download', this.formatBytes(this.stats.downloadBytes))
-      }
-      .width('100%')
-    }
-    .width('100%')
-    .padding(Space.xl)
-    .margin({ left: Space.lg, right: Space.lg, top: Space.md, bottom: Space.md })
-    .backgroundColor(AppColor.surface)
-    .borderRadius(Radius.xl)
-    .shadow({ radius: Elevation.card, color: AppColor.shadowCard, offsetX: 0, offsetY: 4 })
-  }
-
-  @Builder
-  private TrafficPill(icon: Resource, iconColor: ResourceColor, iconBg: ResourceColor, label: string, value: string) {
-    Row({ space: Space.sm }) {
-      Column() {
-        Image(icon)
-          .width(14)
-          .height(14)
-          .fillColor(iconColor)
-      }
-      .width(28)
-      .height(28)
-      .borderRadius(14)
-      .backgroundColor(iconBg)
-      .justifyContent(FlexAlign.Center)
-      .alignItems(HorizontalAlign.Center)
-
-      Column({ space: 2 }) {
-        Text(label)
-          .fontSize(FontSz.caption)
-          .fontColor(AppColor.textTertiary)
-        Text(value)
-          .fontSize(FontSz.body)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(AppColor.textPrimary)
-      }
-      .alignItems(HorizontalAlign.Start)
-    }
-    .layoutWeight(1)
-    .padding({ left: Space.md, right: Space.md, top: Space.md, bottom: Space.md })
-    .backgroundColor(AppColor.surfaceAlt)
-    .borderRadius(Radius.md)
-  }
-
-  private heroSubText(): string {
-    if (this.selectedNodeId.length > 0) {
-      return this.findSelectedNodeName();
-    }
-    return this.language === 'zh' ? '准备就绪' : 'Ready';
-  }
-
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) {
-      return '0 B';
-    }
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
-  }
-
-  @Builder
   private NodeList() {
-    Column({ space: 0 }) {
-      if (this.subscriptionGroups.length === 0) {
-        this.EmptyStateUI()
-      } else if (this.visibleNodes().length === 0) {
-        this.EmptyGroupNodesUI()
-      } else {
-        ForEach(this.visibleNodes(), (node: ProxyNode) => {
+    List() {
+      ForEach(this.visibleNodes(), (node: ProxyNode) => {
+        ListItem() {
           ServerNodeCard({
             node,
             isSelected: node.id === this.selectedNodeId,
-            isBusy: this.isBusy(),
             sourceLabel: this.nodeEndpointText(node),
             delayText: this.nodeDelayText(node),
             delayColor: this.nodeDelayColor(node),
-            currentLabel: this.t('action.current'),
-            useLabel: this.t('action.use'),
-            openLabel: this.t('action.detail'),
             onSelect: (selectedNode: ProxyNode) => {
               this.selectNode(selectedNode);
-            },
-            onShare: (sharedNode: ProxyNode) => {
-              this.shareNode(sharedNode);
-            },
-            onOpen: (openedNode: ProxyNode) => {
-              this.openNodeDetail(openedNode);
-            },
-            onDelete: (deletedNode: ProxyNode) => {
-              this.removeNode(deletedNode);
             }
           })
-        }, (node: ProxyNode, index: number) => `${index}-${node.id}`)
-      }
+        }
+        .swipeAction({ end: this.NodeSwipeActions(node) })
+      }, (node: ProxyNode, index: number) => `${index}-${node.id}`)
     }
+    .layoutWeight(1)
     .width('100%')
     .backgroundColor(AppColor.surface)
     .borderRadius(Radius.lg)
     .clip(true)
-    .margin({ left: Space.lg, right: Space.lg, bottom: Space.lg })
+    .divider({ strokeWidth: 0.5, color: AppColor.divider, startMargin: 56 })
+    .scrollBar(BarState.Off)
+    .margin({ left: Space.lg, right: Space.lg, top: Space.xs, bottom: Space.lg })
+  }
+
+  @Builder
+  private NodeSwipeActions(node: ProxyNode) {
+    Row() {
+      this.SwipeButton($r('app.media.ic_share'), this.t('action.share'), AppColor.brand, () => {
+        this.shareNode(node);
+      })
+      this.SwipeButton($r('app.media.ic_edit'), this.t('action.detail'), AppColor.textSecondary, () => {
+        this.openNodeDetail(node);
+      })
+      this.SwipeButton($r('app.media.ic_delete'), this.t('action.delete'), AppColor.danger, () => {
+        this.removeNode(node);
+      })
+    }
+    .height('100%')
+  }
+
+  @Builder
+  private SwipeButton(icon: Resource, label: string, bg: ResourceColor, action: () => void) {
+    Column({ space: 3 }) {
+      Image(icon)
+        .width(20)
+        .height(20)
+        .fillColor(Color.White)
+      Text(label)
+        .fontSize(FontSz.caption)
+        .fontColor(Color.White)
+    }
+    .width(72)
+    .height('100%')
+    .backgroundColor(bg)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      action();
+    })
   }
 
   @Builder
@@ -403,19 +553,19 @@ struct Index {
     Column({ space: Space.xxl }) {
       Column({ space: Space.md }) {
         Image($r('app.media.ic_subscriptions'))
-          .width(80)
-          .height(80)
+          .width(72)
+          .height(72)
           .fillColor(AppColor.textTertiary)
-          .opacity(0.5)
+          .opacity(0.4)
 
         Text('探索 Hey VPN')
-          .fontSize(FontSz.title)
+          .fontSize(FontSz.headline)
           .fontWeight(FontWeight.Bold)
           .fontColor(AppColor.textPrimary)
           .margin({ top: Space.sm })
 
         Text('开启安全、自由的网络连接。请先添加订阅分组以同步您的服务器节点。')
-          .fontSize(FontSz.body)
+          .fontSize(FontSz.footnote)
           .fontColor(AppColor.textTertiary)
           .textAlign(TextAlign.Center)
           .padding({ left: Space.xxxl, right: Space.xxxl })
@@ -430,9 +580,8 @@ struct Index {
           .height(44)
           .backgroundColor(AppColor.brand)
           .fontColor(AppColor.onBrand)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(FontWeight.Medium)
           .borderRadius(Radius.pill)
-          .shadow({ radius: Elevation.card, color: AppColor.shadowBrand, offsetX: 0, offsetY: 4 })
           .onClick(() => {
             this.openRoute(AppRoute.SUBSCRIPTIONS);
           })
@@ -451,17 +600,17 @@ struct Index {
       .alignItems(HorizontalAlign.Center)
     }
     .width('100%')
-    .padding({ top: 80, bottom: 80 })
+    .padding({ top: 72, bottom: 72 })
   }
 
   @Builder
   private EmptyGroupNodesUI() {
     Column({ space: Space.xl }) {
       Image($r('app.media.ic_cloud_download'))
-        .width(72)
-        .height(72)
+        .width(64)
+        .height(64)
         .fillColor(AppColor.textTertiary)
-        .opacity(0.5)
+        .opacity(0.4)
 
       Text('当前分组暂无节点')
         .fontSize(FontSz.headline)
@@ -485,7 +634,129 @@ struct Index {
         })
     }
     .width('100%')
-    .padding({ top: 80, bottom: 80 })
+    .padding({ top: 72, bottom: 72 })
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tab 3 · 设置
+  // ---------------------------------------------------------------------------
+
+  @Builder
+  private SettingsTab() {
+    Column() {
+      Row() {
+        Text(this.t('tab.settings'))
+          .fontSize(FontSz.display)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(AppColor.textPrimary)
+      }
+      .width('100%')
+      .padding({ left: Space.xxl, right: Space.xxl, top: Space.xxl, bottom: Space.sm })
+
+      Scroll() {
+        Column({ space: Space.lg }) {
+          this.SettingsGroup(this.t('settings.group.nodes'), [
+            new SettingsRowModel($r('app.media.ic_add'), this.t('screen.import.title'), AppRoute.IMPORT),
+            new SettingsRowModel($r('app.media.ic_subscriptions'), this.t('screen.subscriptions.title'), AppRoute.SUBSCRIPTIONS),
+            new SettingsRowModel($r('app.media.ic_qr_code'), this.t('screen.scanner.title'), AppRoute.SCANNER)
+          ])
+
+          this.SettingsGroup(this.t('settings.group.network'), [
+            new SettingsRowModel($r('app.media.ic_route'), this.t('screen.routing.title'), AppRoute.ROUTING),
+            new SettingsRowModel($r('app.media.ic_apps'), this.t('screen.perApp.title'), AppRoute.PER_APP),
+            new SettingsRowModel($r('app.media.ic_folder'), this.t('screen.assets.title'), AppRoute.ASSETS)
+          ])
+
+          this.SettingsGroup(this.t('settings.group.general'), [
+            new SettingsRowModel($r('app.media.ic_settings'), this.t('settings.row.preferences'), AppRoute.SETTINGS),
+            new SettingsRowModel($r('app.media.ic_article'), this.t('screen.logs.title'), AppRoute.LOGS),
+            new SettingsRowModel($r('app.media.ic_info'), this.t('screen.about.title'), AppRoute.ABOUT)
+          ])
+        }
+        .width('100%')
+        .padding({ bottom: Space.xxl })
+      }
+      .layoutWeight(1)
+      .width('100%')
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(AppColor.bg)
+  }
+
+  @Builder
+  private SettingsGroup(title: string, rows: Array<SettingsRowModel>) {
+    Column({ space: 0 }) {
+      Text(title)
+        .fontSize(FontSz.footnote)
+        .fontColor(AppColor.textTertiary)
+        .width('100%')
+        .padding({ left: Space.lg, bottom: Space.sm })
+
+      Column({ space: 0 }) {
+        ForEach(rows, (row: SettingsRowModel, index: number) => {
+          this.SettingsRow(row, index === rows.length - 1)
+        }, (row: SettingsRowModel, index: number) => `${index}-${row.title}`)
+      }
+      .width('100%')
+      .backgroundColor(AppColor.surface)
+      .borderRadius(Radius.lg)
+      .clip(true)
+    }
+    .width('100%')
+    .padding({ left: Space.lg, right: Space.lg })
+  }
+
+  @Builder
+  private SettingsRow(row: SettingsRowModel, isLast: boolean) {
+    Column() {
+      Row({ space: Space.md }) {
+        Image(row.icon)
+          .width(22)
+          .height(22)
+          .fillColor(AppColor.textSecondary)
+
+        Text(row.title)
+          .fontSize(FontSz.callout)
+          .fontColor(AppColor.textPrimary)
+          .layoutWeight(1)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+        Image($r('app.media.ic_chevron_right'))
+          .width(20)
+          .height(20)
+          .fillColor(AppColor.textTertiary)
+      }
+      .width('100%')
+      .height(52)
+      .padding({ left: Space.lg, right: Space.lg })
+
+      if (!isLast) {
+        Divider()
+          .strokeWidth(0.5)
+          .color(AppColor.divider)
+          .margin({ left: 50 })
+      }
+    }
+    .width('100%')
+    .onClick(() => {
+      this.openRoute(row.route);
+    })
+  }
+
+  // ---------------------------------------------------------------------------
+  // 逻辑（沿用既有实现）
+  // ---------------------------------------------------------------------------
+
+  private formatBytes(bytes: number): string {
+    if (bytes === 0) {
+      return '0 B';
+    }
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
   }
 
   private async loadInitialState(): Promise<void> {
@@ -714,12 +985,6 @@ struct Index {
     return DelayTester.measureTcp(address, port, timeoutMs);
   }
 
-  private showRealConnectionTestUnavailable(): void {
-    const message = this.t('prompt.nativeDelayUnavailable');
-    promptAction.showToast({ message });
-    SHARED_RUNTIME_CONTROLLER.appendLog(message);
-  }
-
   private markNodeDelay(nodeId: string, delayMs: number, delayStatus: string, delayTestAt: number): void {
     const next = new Array<ProxyNode>();
     for (let index = 0; index < this.nodes.length; index++) {
@@ -799,16 +1064,6 @@ struct Index {
 
   private visibleNodes(): Array<ProxyNode> {
     return filterNodes(this.nodes, this.searchQuery);
-  }
-
-  private bottomStatusText(): string {
-    if (this.isBusy()) {
-      return this.t('home.busy');
-    }
-    if (this.isRunning()) {
-      return this.t('home.connectedTest');
-    }
-    return this.t('home.disconnected');
   }
 
   private nodeEndpointText(node: ProxyNode): string {
@@ -905,7 +1160,7 @@ struct Index {
 
   private nodeDelayColor(node: ProxyNode): ResourceColor {
     if (node.delayStatus === 'testing') {
-      return AppColor.info;
+      return AppColor.textSecondary;
     }
     if (node.delayMs >= 0) {
       if (node.delayMs <= 300) {
@@ -932,10 +1187,6 @@ struct Index {
     return this.t('status.' + this.status);
   }
 
-  private localizeCoreMessage(message: string): string {
-    return localizeCoreMessage(this.language, message);
-  }
-
   private t(key: string): string {
     return translate(this.language, key);
   }
@@ -954,48 +1205,6 @@ struct Index {
 
   private isBusy(): boolean {
     return this.connectionOperationRunning || this.status === ConnectionStatus.STARTING || this.status === ConnectionStatus.STOPPING;
-  }
-
-  @Builder
-  private MoreMenuBuilder() {
-    Menu() {
-      MenuItem({ content: this.t('menu.serviceRestart') })
-        .onClick(() => {
-          this.reconnectService();
-        })
-      MenuItem({ content: this.t('menu.deleteConfig') })
-        .onClick(() => {
-          this.deleteCurrentConfig();
-        })
-      MenuItem({ content: this.t('menu.deleteDuplicate') })
-        .onClick(() => {
-          this.dedupeNodes();
-        })
-      MenuItem({ content: this.t('menu.deleteInvalid') })
-        .onClick(() => {
-          this.removeInvalidNodes();
-        })
-      MenuItem({ content: this.t('menu.exportClipboard') })
-        .onClick(() => {
-          this.exportAllNodesToClipboard();
-        })
-      MenuItem({ content: this.t('menu.testTcping') })
-        .onClick(() => {
-          this.testVisibleNodeDelay();
-        })
-      MenuItem({ content: this.t('menu.testRealConnection') })
-        .onClick(() => {
-          this.showRealConnectionTestUnavailable();
-        })
-      MenuItem({ content: this.t('menu.locateSelected') })
-        .onClick(() => {
-          this.locateSelectedConfig();
-        })
-      MenuItem({ content: this.t('menu.updateSubscription') })
-        .onClick(() => {
-          this.updateSubscription();
-        })
-    }
   }
 
   private async reconnectService(): Promise<void> {
@@ -1017,24 +1226,6 @@ struct Index {
       }
     } finally {
       this.connectionOperationRunning = false;
-    }
-  }
-
-  private async deleteCurrentConfig(): Promise<void> {
-    if (this.selectedNodeId.length === 0) {
-      promptAction.showToast({ message: this.t('prompt.noNodeToDelete') });
-      return;
-    }
-    let targetNode: ProxyNode | null = null;
-    for (let i = 0; i < this.nodes.length; i++) {
-      if (this.nodes[i].id === this.selectedNodeId) {
-        targetNode = this.nodes[i];
-        break;
-      }
-    }
-    if (targetNode !== null) {
-      await this.removeNode(targetNode);
-      promptAction.showToast({ message: '配置已删除' });
     }
   }
 
@@ -1082,123 +1273,18 @@ struct Index {
         return this.nodes[i].name;
       }
     }
-    return '未选择';
+    return this.t('home.noNodeSelected');
   }
+}
 
-  @Builder
-  private DrawerContent() {
-    Column() {
-      Column({ space: Space.sm }) {
-        Text('Hey VPN')
-          .fontSize(FontSz.display)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(AppColor.onBrand)
+class SettingsRowModel {
+  icon: Resource;
+  title: string;
+  route: AppRoute;
 
-        Text(this.isRunning() ? '服务正在运行' : '服务未连接')
-          .fontSize(FontSz.body)
-          .fontColor(AppColor.onBrand)
-          .opacity(0.9)
-
-        if (this.selectedNodeId.length > 0) {
-          Text('当前节点: ' + this.findSelectedNodeName())
-            .fontSize(FontSz.footnote)
-            .fontColor(AppColor.onBrand)
-            .opacity(0.85)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-      }
-      .width('100%')
-      .alignItems(HorizontalAlign.Start)
-      .padding({ left: Space.xxl, right: Space.xxl, top: 56, bottom: Space.xxl })
-      .linearGradient({
-        angle: 135,
-        colors: [[AppColor.brandStrong, 0.0], [AppColor.brand, 1.0]]
-      })
-
-      Scroll() {
-        Column({ space: Space.xs }) {
-          this.DrawerMenuItem('首页', $r('app.media.ic_menu'), () => {
-            animateTo({ duration: 200, curve: Curve.EaseOut }, () => {
-              this.showSideBar = false;
-            })
-          }, true)
-
-          Divider().color(AppColor.divider).strokeWidth(1).margin({ top: Space.xs, bottom: Space.xs })
-
-          this.DrawerMenuItem('添加配置', $r('app.media.ic_add'), () => {
-            this.clickDrawerItem(AppRoute.IMPORT);
-          })
-          
-          this.DrawerMenuItem('订阅分组', $r('app.media.ic_subscriptions'), () => {
-            this.clickDrawerItem(AppRoute.SUBSCRIPTIONS);
-          })
-
-          this.DrawerMenuItem('路由设置', $r('app.media.ic_route'), () => {
-            this.clickDrawerItem(AppRoute.ROUTING);
-          })
-
-          this.DrawerMenuItem('分应用代理', $r('app.media.ic_apps'), () => {
-            this.clickDrawerItem(AppRoute.PER_APP);
-          })
-
-          this.DrawerMenuItem('资源文件', $r('app.media.ic_folder'), () => {
-            this.clickDrawerItem(AppRoute.ASSETS);
-          })
-
-          this.DrawerMenuItem('系统日志', $r('app.media.ic_info'), () => {
-            this.clickDrawerItem(AppRoute.LOGS);
-          })
-
-          this.DrawerMenuItem('扫描二维码', $r('app.media.ic_qr_code'), () => {
-            this.clickDrawerItem(AppRoute.SCANNER);
-          })
-
-          this.DrawerMenuItem('设置偏好', $r('app.media.ic_settings'), () => {
-            this.clickDrawerItem(AppRoute.SETTINGS);
-          })
-
-          this.DrawerMenuItem('关于应用', $r('app.media.ic_info'), () => {
-            this.clickDrawerItem(AppRoute.ABOUT);
-          })
-        }
-        .width('100%')
-        .padding({ left: Space.md, right: Space.md, top: Space.lg, bottom: Space.xxl })
-      }
-      .layoutWeight(1)
-      .width('100%')
-    }
-    .width('100%')
-    .height('100%')
-    .alignItems(HorizontalAlign.Start)
-  }
-
-  @Builder
-  private DrawerMenuItem(title: string, icon: Resource, onClick: () => void, isSelected: boolean = false) {
-    Row({ space: Space.lg }) {
-      Image(icon)
-        .width(22)
-        .height(22)
-        .fillColor(isSelected ? AppColor.brand : AppColor.textSecondary)
-      Text(title)
-        .fontSize(FontSz.callout)
-        .fontWeight(isSelected ? FontWeight.Medium : FontWeight.Regular)
-        .fontColor(isSelected ? AppColor.brand : AppColor.textPrimary)
-    }
-    .width('100%')
-    .height(48)
-    .padding({ left: Space.lg, right: Space.lg })
-    .borderRadius(Radius.sm)
-    .backgroundColor(isSelected ? AppColor.brandTint : Color.Transparent)
-    .onClick(() => {
-      onClick();
-    })
-  }
-
-  private clickDrawerItem(route: AppRoute) {
-    animateTo({ duration: 150, curve: Curve.EaseOut }, () => {
-      this.showSideBar = false;
-    })
-    this.openRoute(route);
+  constructor(icon: Resource, title: string, route: AppRoute) {
+    this.icon = icon;
+    this.title = title;
+    this.route = route;
   }
 }
