@@ -69,7 +69,7 @@
 | 设置行控件（共享） | `features/settings/SettingsControls.ets` | ✅ | 令牌化；隐藏开发者键名；语言改分段控件 |
 | 设置偏好页 | `pages/Settings.ets` | ✅ | iOS 分组卡片；灰底+白卡+细分割线；品牌色保存按钮 |
 | 订阅分组页 | `pages/Subscriptions.ets` | ✅ | 分组改 iOS 列表行（图标+名称+信息+开关/箭头）；操作改左滑 |
-| 路由设置页 | `pages/Routing.ets` | 🌓 | 深色已适配；iOS 分组重排待做（下一个） |
+| 路由设置页 | `pages/Routing.ets` | ✅ | iOS 分组列表：流量模式/域名策略改单选行（右侧 ic_check），预置规则集改导航行（chevron→详情弹窗） |
 | 分应用代理页 | `pages/PerApp.ets` | 🌓 | 深色已适配；iOS 重排待做（仍传旧键名） |
 | 资源文件页 | `pages/Assets.ets` + `pages/assets/*` | 🌓 | 深色已适配（蓝/绿改 info/success + 新增 infoTint）；iOS 重排待做 |
 | 日志页 | `pages/Logs.ets` `LogPanel`/`RuntimePanel` | 🌓 | 深色已适配；iOS 重排待做 |
@@ -131,8 +131,8 @@
 - **尚未在 DevEco 编译/真机验证**——所有 ArkTS 均为人工逐行核对。每次改完用括号/圆括号配对自检，但仍需真机走查（见上方各「待验证」清单）。
 
 ### 下一步（按优先级）
-1. **路由页 `pages/Routing.ets` 的 iOS 分组重排**（当前仅令牌化 🌓，未重排）。
-2. 其余 🌓 页面逐个 iOS 重排：`PerApp.ets` → `Assets.ets`(+`assets/*`) → `NodeDetail/NodeEdit` → `Import/JsonImport/Export` → `SubscriptionDetail/SubscriptionEdit` → `About` → `Logs`。
+1. ~~路由页 `pages/Routing.ets` 的 iOS 分组重排~~ ✅ 已完成。
+2. 其余 🌓 页面逐个 iOS 重排：`PerApp.ets`（下一个） → `Assets.ets`(+`assets/*`) → `NodeDetail/NodeEdit` → `Import/JsonImport/Export` → `SubscriptionDetail/SubscriptionEdit` → `About` → `Logs`。
 3. 安全区 inset 统一处理（若真机发现大标题被状态栏遮挡）。
 
 ### iOS 分组重排的样板（务必照此保持一致）
@@ -176,4 +176,5 @@ entry/src/main/ets/core/XrayConfig.ets
 | 2026-06-05 | 真机修复三连：①Index 加 `onPageShow` 刷新（加订阅后节点列表实时更新）②PageHeader 覆盖层 `hitTestBehavior(Transparent)` 修复返回键被遮挡失效 ③节点搜索改为 header 内就地展开（搜索框+取消，带动画），不再在下方另开输入框 |
 | 2026-06-05 | **子页面深色模式适配**：20 个子页面/组件的硬编码 hex 全量令牌化（~500 处），深色模式自动适配；新增 `infoTint` 令牌（base+dark）。已知保留的 3 处硬编码：①`nodeDelayColor()`/`delayColor` 的延迟状态色链（string 类型约束，中间调在深色下仍清晰）②`promptAction.Button` 系统弹窗色（BuiltinGeoCard） |
 | 2026-06-05 | **配色统一为单一暖橙**：全站 `info`/`infoTint` 蓝 → `brand`/`brandTint` 橙；左滑次要操作改中性灰；延迟「测速中」蓝改橙。无蓝色残留 |
+| 2026-06-05 | **路由页 iOS 分组重排**：三张品牌色卡片 → 灰底+`SectionHeader`+分组卡片。流量模式/域名策略由分段控件/自定义单选改为 iOS 单选行（图标+标题+副标题，右侧 `ic_check` 标选中），流量模式说明改组脚注；预置规则集改导航行（`ic_chevron_right`，点击仍弹详情）。去除卡片阴影，间距/圆角/字号全部令牌化。逻辑（trafficMode/strategy/routeOnly/persist）原样保留 |
 | 2026-06-05 | **App Logo 重设计**：保留「H+连接节点」图形语义，蓝色渐变 → 暖橙渐变 + 底部柔光波纹，青绿节点环改白色。SVG 源 `design/app-icon/hey-icon-{fg,bg,combined}.svg`，已渲染部署 foreground/background（AppScope + entry）与 startIcon(144) |
