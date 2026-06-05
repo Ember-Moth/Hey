@@ -6,8 +6,9 @@ import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
+import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
-import { AppColor } from '../theme/Theme';
+import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 
 // 1. 声明独立的通用子组件，支持标准的双向状态重绘 (@Link)
 
@@ -19,22 +20,22 @@ struct SegmentedControl {
   onSelect?: (value: string) => void;
 
   build() {
-    Column({ space: 6 }) {
+    Column({ space: Space.sm }) {
       Text(this.label)
-        .fontSize(12)
+        .fontSize(FontSz.footnote)
         .fontColor(AppColor.textSecondary)
         .width('100%')
-      Row({ space: 4 }) {
+      Row({ space: Space.xs }) {
         ForEach(this.options, (option: string) => {
           Text(option.toUpperCase())
             .layoutWeight(1)
-            .height(34)
-            .fontSize(11)
-            .fontWeight(this.selected === option ? FontWeight.Bold : FontWeight.Normal)
+            .height(32)
+            .fontSize(FontSz.caption)
+            .fontWeight(this.selected === option ? FontWeight.Medium : FontWeight.Normal)
             .fontColor(this.selected === option ? AppColor.onBrand : AppColor.textSecondary)
-            .backgroundColor(this.selected === option ? AppColor.brand : AppColor.border)
+            .backgroundColor(this.selected === option ? AppColor.brand : Color.Transparent)
             .textAlign(TextAlign.Center)
-            .borderRadius(6)
+            .borderRadius(Radius.sm)
             .onClick(() => {
               this.selected = option;
               if (this.onSelect !== undefined) {
@@ -45,8 +46,8 @@ struct SegmentedControl {
       }
       .width('100%')
       .padding(3)
-      .backgroundColor(AppColor.border)
-      .borderRadius(8)
+      .backgroundColor(AppColor.surfaceAlt)
+      .borderRadius(Radius.md)
     }
     .width('100%')
   }
@@ -60,16 +61,19 @@ struct ToggleRow {
   build() {
     Row() {
       Text(this.label)
-        .fontSize(13)
-        .fontColor(AppColor.textSecondary)
+        .fontSize(FontSz.callout)
+        .fontColor(AppColor.textPrimary)
+        .layoutWeight(1)
       Blank()
       Toggle({ type: ToggleType.Switch, isOn: this.isOn })
+        .selectedColor(AppColor.brand)
+        .switchPointColor(AppColor.onBrand)
         .onChange((state: boolean) => {
           this.isOn = state;
         })
     }
     .width('100%')
-    .height(42)
+    .height(44)
     .alignItems(VerticalAlign.Center)
   }
 }
@@ -81,30 +85,30 @@ struct PickerRow {
   @Link selectedValue: string;
 
   build() {
-    Column({ space: 6 }) {
+    Column({ space: Space.sm }) {
       Text(this.label)
-        .fontSize(12)
+        .fontSize(FontSz.footnote)
         .fontColor(AppColor.textSecondary)
         .width('100%')
 
       Row() {
         Text(this.selectedValue.toUpperCase())
-          .fontSize(13)
+          .fontSize(FontSz.body)
           .fontColor(AppColor.textPrimary)
           .fontWeight(FontWeight.Medium)
 
         Blank()
 
         Image($r('app.media.ic_chevron_right'))
-          .width(14)
-          .height(14)
+          .width(18)
+          .height(18)
           .fillColor(AppColor.textTertiary)
       }
       .width('100%')
-      .height(42)
-      .backgroundColor(AppColor.bg)
-      .borderRadius(8)
-      .padding({ left: 12, right: 12 })
+      .height(44)
+      .backgroundColor(AppColor.surfaceAlt)
+      .borderRadius(Radius.md)
+      .padding({ left: Space.md, right: Space.md })
       .alignItems(VerticalAlign.Center)
       .onClick(() => {
         const selectedIndex = this.options.indexOf(this.selectedValue) >= 0 ? this.options.indexOf(this.selectedValue) : 0;
@@ -359,7 +363,6 @@ struct NodeEditPage {
 
   @State private isBusy: boolean = false;
   @State private lastError: string = '';
-  @State private isPressed: boolean = false;
 
   aboutToAppear(): void {
     const params = router.getParams() as Record<string, Object>;
@@ -377,11 +380,10 @@ struct NodeEditPage {
 
       Stack({ alignContent: Alignment.Bottom }) {
         Scroll() {
-          Column({ space: 16 }) {
+          Column({ space: Space.lg }) {
             // Card 1：基础配置信息
-            Column({ space: 14 }) {
-              this.CardSectionTitle('基础配置信息')
-              
+            SectionHeader({ title: '基础配置信息' })
+            Column({ space: Space.md }) {
               this.EditorRow('节点名称', this.nodeName, '例如：香港 01 节点', (value: string) => {
                 this.nodeName = value;
               })
@@ -393,14 +395,14 @@ struct NodeEditPage {
               })
             }
             .width('100%')
-            .padding(16)
+            .padding(Space.lg)
             .backgroundColor(AppColor.surface)
-            .borderRadius(16)
-            .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
+            .borderRadius(Radius.lg)
+            .margin({ left: Space.lg, right: Space.lg })
 
             // Card 2：认证与加密参数
-            Column({ space: 14 }) {
-              this.CardSectionTitle('认证与加密设置')
+            SectionHeader({ title: '认证与加密设置' })
+            Column({ space: Space.md }) {
 
               // VLESS 与 VMess UUID
               if (this.protocol === 'vless' || this.protocol === 'vmess') {
@@ -472,16 +474,15 @@ struct NodeEditPage {
               }
             }
             .width('100%')
-            .padding(16)
+            .padding(Space.lg)
             .backgroundColor(AppColor.surface)
-            .borderRadius(16)
-            .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
+            .borderRadius(Radius.lg)
+            .margin({ left: Space.lg, right: Space.lg })
 
             // Card 3：WireGuard 专有配置
             if (this.protocol === 'wireguard') {
-              Column({ space: 14 }) {
-                this.CardSectionTitle('WireGuard 参数设置')
-                
+              SectionHeader({ title: 'WireGuard 参数设置' })
+              Column({ space: Space.md }) {
                 this.EditorRow('对端公钥 (Peer Public Key)', this.wgPublicKey, '节点公钥', (value: string) => {
                   this.wgPublicKey = value;
                 })
@@ -499,17 +500,16 @@ struct NodeEditPage {
                 })
               }
               .width('100%')
-              .padding(16)
+              .padding(Space.lg)
               .backgroundColor(AppColor.surface)
-              .borderRadius(16)
-              .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
+              .borderRadius(Radius.lg)
+              .margin({ left: Space.lg, right: Space.lg })
             }
 
             // Card 4：Hysteria2 专有配置
             if (this.protocol === 'hysteria2') {
-              Column({ space: 14 }) {
-                this.CardSectionTitle('Hysteria 2 混淆与流控')
-                
+              SectionHeader({ title: 'Hysteria 2 混淆与流控' })
+              Column({ space: Space.md }) {
                 this.EditorRow('混淆密码 (Obfs Password - 可选)', this.hy2ObfsPassword, 'Hysteria 2 混淆密码', (value: string) => {
                   this.hy2ObfsPassword = value;
                 })
@@ -536,17 +536,16 @@ struct NodeEditPage {
                 })
               }
               .width('100%')
-              .padding(16)
+              .padding(Space.lg)
               .backgroundColor(AppColor.surface)
-              .borderRadius(16)
-              .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
+              .borderRadius(Radius.lg)
+              .margin({ left: Space.lg, right: Space.lg })
             }
 
             // Card 5：流媒体与传输混淆设置 (适用于 VLESS, VMess, Trojan, SS)
             if (this.protocol === 'vless' || this.protocol === 'vmess' || this.protocol === 'trojan' || this.protocol === 'ss') {
-              Column({ space: 14 }) {
-                this.CardSectionTitle('传输与伪装设置')
-
+              SectionHeader({ title: '传输与伪装设置' })
+              Column({ space: Space.md }) {
                 SegmentedControl({
                   label: '传输协议 (network)',
                   options: ['tcp', 'ws', 'grpc', 'h2', 'xhttp'],
@@ -608,24 +607,25 @@ struct NodeEditPage {
                 }
               }
               .width('100%')
-              .padding(16)
+              .padding(Space.lg)
               .backgroundColor(AppColor.surface)
-              .borderRadius(16)
-              .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
+              .borderRadius(Radius.lg)
+              .margin({ left: Space.lg, right: Space.lg })
             }
 
             if (this.lastError.length > 0) {
               Text(this.lastError)
-                .fontSize(12)
+                .fontSize(FontSz.footnote)
                 .fontColor(AppColor.danger)
                 .width('100%')
-                .padding(10)
+                .padding(Space.md)
                 .backgroundColor(AppColor.dangerTint)
-                .borderRadius(6)
+                .borderRadius(Radius.md)
+                .margin({ left: Space.lg, right: Space.lg })
             }
           }
           .width('100%')
-          .padding({ left: 16, right: 16, top: 16, bottom: 100 })
+          .padding({ top: Space.sm, bottom: 100 })
         }
         .width('100%')
         .height('100%')
@@ -640,44 +640,26 @@ struct NodeEditPage {
                   .width(20)
                   .height(20)
                   .color(AppColor.onBrand)
-                  .margin({ right: 8 })
+                  .margin({ right: Space.sm })
               }
               Text('保存节点配置')
-                .fontSize(16)
-                .fontWeight(FontWeight.Bold)
+                .fontSize(FontSz.headline)
+                .fontWeight(FontWeight.Medium)
                 .fontColor(this.isSaveEnabled() ? AppColor.onBrand : AppColor.textTertiary)
             }
           }
           .width('100%')
-          .height(50)
-          .borderRadius(12)
+          .height(48)
+          .borderRadius(Radius.pill)
           .enabled(this.isSaveEnabled())
-          .opacity(this.isSaveEnabled() ? 1.0 : 0.65)
-          .linearGradient(this.isSaveEnabled() ? {
-            angle: 90,
-            colors: [[AppColor.brandStrong, 0.0], [AppColor.brand, 1.0]]
-          } : {
-            angle: 90,
-            colors: [[AppColor.border, 0.0], [AppColor.border, 1.0]]
-          })
-          .shadow(this.isSaveEnabled() ? { radius: 10, color: AppColor.shadowBrand, offsetX: 0, offsetY: 4 } : undefined)
-          .scale({ x: this.isPressed ? 0.97 : 1.0, y: this.isPressed ? 0.97 : 1.0 })
-          .animation({ duration: 150, curve: Curve.EaseOut })
-          .onTouch((event) => {
-            if (event.type === TouchType.Down) {
-              this.isPressed = true;
-            } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-              this.isPressed = false;
-            }
-          })
+          .backgroundColor(this.isSaveEnabled() ? AppColor.brand : AppColor.surfaceAlt)
           .onClick(() => {
             this.saveManualNode();
           })
         }
         .width('100%')
-        .padding({ left: 16, right: 16, top: 16, bottom: 24 })
+        .padding({ left: Space.lg, right: Space.lg, top: Space.md, bottom: Space.xxl })
         .backgroundColor(AppColor.bg)
-        .backgroundBlurStyle(BlurStyle.Thin)
       }
       .layoutWeight(1)
       .width('100%')
@@ -688,37 +670,20 @@ struct NodeEditPage {
   }
 
   @Builder
-  private CardSectionTitle(title: string) {
-    Row({ space: 8 }) {
-      Column()
-        .width(4)
-        .height(16)
-        .backgroundColor(AppColor.brand)
-        .borderRadius(2)
-
-      Text(title)
-        .fontSize(15)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(AppColor.textPrimary)
-    }
-    .width('100%')
-    .alignItems(VerticalAlign.Center)
-    .margin({ bottom: 4 })
-  }
-
-  @Builder
   private EditorRow(label: string, value: string, placeholder: string, onChange: (value: string) => void) {
-    Column({ space: 6 }) {
+    Column({ space: Space.sm }) {
       Text(label)
-        .fontSize(12)
+        .fontSize(FontSz.footnote)
         .fontColor(AppColor.textSecondary)
         .width('100%')
       TextInput({ text: value, placeholder: placeholder })
-        .height(42)
-        .fontSize(13)
-        .backgroundColor(AppColor.bg)
-        .borderRadius(8)
-        .padding({ left: 12, right: 12 })
+        .height(44)
+        .fontSize(FontSz.body)
+        .fontColor(AppColor.textPrimary)
+        .placeholderColor(AppColor.textTertiary)
+        .backgroundColor(AppColor.surfaceAlt)
+        .borderRadius(Radius.md)
+        .padding({ left: Space.md, right: Space.md })
         .onChange((next: string) => {
           onChange(next);
         })
