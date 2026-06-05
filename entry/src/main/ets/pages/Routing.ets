@@ -5,6 +5,7 @@ import { SETTINGS_CONTROLLER, SettingsDraft } from '../features/settings/Setting
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
+import { AppColor } from '../theme/Theme';
 
 @Entry
 @Component
@@ -36,13 +37,13 @@ struct RoutingPage {
               Text(this.t('routing.trafficMode'))
                 .fontSize(16)
                 .fontWeight(FontWeight.Bold)
-                .fontColor('#F97910')
+                .fontColor(AppColor.brand)
               Blank()
               Text(this.t(`routing.mode.${this.trafficMode}`))
                 .fontSize(12)
-                .fontColor('#F97910')
+                .fontColor(AppColor.brand)
                 .fontWeight(FontWeight.Medium)
-                .backgroundColor('#FFF0E6')
+                .backgroundColor(AppColor.brandTint)
                 .padding({ left: 8, right: 8, top: 4, bottom: 4 })
                 .borderRadius(8)
             }
@@ -60,7 +61,7 @@ struct RoutingPage {
             // 当前流量模式的说明文案
             Text(this.getTrafficModeDescription())
               .fontSize(12)
-              .fontColor('#6B7280')
+              .fontColor(AppColor.textSecondary)
               .lineHeight(16)
               .width('100%')
               .margin({ bottom: 4 })
@@ -72,17 +73,17 @@ struct RoutingPage {
                   Text(this.t('settings.routeOnly'))
                     .fontSize(15)
                     .fontWeight(FontWeight.Medium)
-                    .fontColor('#1C1B1F')
+                    .fontColor(AppColor.textPrimary)
                   Text('启用后，局域网和中国境内流量将直接连接。')
                     .fontSize(12)
-                    .fontColor('#9CA3AF')
+                    .fontColor(AppColor.textTertiary)
                 }
                 .layoutWeight(1)
                 .alignItems(HorizontalAlign.Start)
 
                 Toggle({ type: ToggleType.Switch, isOn: this.routeOnlyEnabled })
-                  .selectedColor('#F97910')
-                  .switchPointColor('#FFFFFF')
+                  .selectedColor(AppColor.brand)
+                  .switchPointColor(AppColor.onBrand)
                   .onChange((isOn: boolean) => {
                     this.routeOnlyEnabled = isOn;
                     this.persistSettings(this.t('settings.routeOnly') + ': ' + (isOn ? this.t('action.on') : this.t('action.off')));
@@ -90,14 +91,14 @@ struct RoutingPage {
               }
               .width('100%')
               .padding({ top: 12, bottom: 4 })
-              .border({ width: { top: 1 }, color: '#F3F4F6' })
+              .border({ width: { top: 1 }, color: AppColor.divider })
               .margin({ top: 8 })
             }
           }
           .padding(16)
-          .backgroundColor('#FFFFFF')
+          .backgroundColor(AppColor.surface)
           .borderRadius(16)
-          .shadow({ radius: 8, color: '#0D000000', offsetX: 0, offsetY: 2 })
+          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
           .width('100%')
 
           // 卡片 2: 域名策略设置
@@ -106,11 +107,11 @@ struct RoutingPage {
               Text(this.t('routing.domainStrategy'))
                 .fontSize(16)
                 .fontWeight(FontWeight.Bold)
-                .fontColor('#F97910')
+                .fontColor(AppColor.brand)
               Blank()
               Text(this.routingStrategy)
                 .fontSize(12)
-                .fontColor('#49454F')
+                .fontColor(AppColor.textSecondary)
                 .fontWeight(FontWeight.Medium)
             }
             .width('100%')
@@ -124,9 +125,9 @@ struct RoutingPage {
             .width('100%')
           }
           .padding(16)
-          .backgroundColor('#FFFFFF')
+          .backgroundColor(AppColor.surface)
           .borderRadius(16)
-          .shadow({ radius: 8, color: '#0D000000', offsetX: 0, offsetY: 2 })
+          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
           .width('100%')
 
           // 卡片 3: 路由预设详情参考
@@ -135,11 +136,11 @@ struct RoutingPage {
               Text('预置规则集详情')
                 .fontSize(16)
                 .fontWeight(FontWeight.Bold)
-                .fontColor('#F97910')
+                .fontColor(AppColor.brand)
               Blank()
               Text('点击查看详情')
                 .fontSize(12)
-                .fontColor('#9CA3AF')
+                .fontColor(AppColor.textTertiary)
             }
             .width('100%')
             .margin({ bottom: 14 })
@@ -173,9 +174,9 @@ struct RoutingPage {
             .width('100%')
           }
           .padding(16)
-          .backgroundColor('#FFFFFF')
+          .backgroundColor(AppColor.surface)
           .borderRadius(16)
-          .shadow({ radius: 8, color: '#0D000000', offsetX: 0, offsetY: 2 })
+          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
           .width('100%')
 
         }
@@ -187,7 +188,7 @@ struct RoutingPage {
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F6F8FA')
+    .backgroundColor(AppColor.bg)
   }
 
   @Builder
@@ -196,19 +197,19 @@ struct RoutingPage {
       Image(icon)
         .width(24)
         .height(24)
-        .fillColor(this.trafficMode === value ? '#F97910' : '#49454F')
+        .fillColor(this.trafficMode === value ? AppColor.brand : AppColor.textSecondary)
       Text(label)
         .fontSize(14)
         .fontWeight(this.trafficMode === value ? FontWeight.Bold : FontWeight.Medium)
-        .fontColor(this.trafficMode === value ? '#F97910' : '#1C1B1F')
+        .fontColor(this.trafficMode === value ? AppColor.brand : AppColor.textPrimary)
     }
     .layoutWeight(1)
     .padding({ top: 12, bottom: 12 })
-    .backgroundColor(this.trafficMode === value ? '#FFF0E6' : '#F7F8FA')
+    .backgroundColor(this.trafficMode === value ? AppColor.brandTint : AppColor.surfaceAlt)
     .borderRadius(12)
     .border({
       width: 1.5,
-      color: this.trafficMode === value ? '#F97910' : 'transparent'
+      color: this.trafficMode === value ? AppColor.brand : 'transparent'
     })
     .onClick(() => {
       this.trafficMode = value;
@@ -226,13 +227,13 @@ struct RoutingPage {
             .width(10)
             .height(10)
             .borderRadius(5)
-            .backgroundColor('#F97910')
+            .backgroundColor(AppColor.brand)
         }
       }
       .width(18)
       .height(18)
       .borderRadius(9)
-      .border({ width: 2, color: this.routingStrategy === value ? '#F97910' : '#9CA3AF' })
+      .border({ width: 2, color: this.routingStrategy === value ? AppColor.brand : AppColor.textTertiary })
       .justifyContent(FlexAlign.Center)
       .alignItems(HorizontalAlign.Center)
 
@@ -240,10 +241,10 @@ struct RoutingPage {
         Text(title)
           .fontSize(14)
           .fontWeight(this.routingStrategy === value ? FontWeight.Bold : FontWeight.Medium)
-          .fontColor(this.routingStrategy === value ? '#F97910' : '#1C1B1F')
+          .fontColor(this.routingStrategy === value ? AppColor.brand : AppColor.textPrimary)
         Text(description)
           .fontSize(11)
-          .fontColor('#6B7280')
+          .fontColor(AppColor.textSecondary)
           .lineHeight(15)
       }
       .layoutWeight(1)
@@ -251,11 +252,11 @@ struct RoutingPage {
     }
     .width('100%')
     .padding(12)
-    .backgroundColor(this.routingStrategy === value ? '#FFF0E6' : '#F7F8FA')
+    .backgroundColor(this.routingStrategy === value ? AppColor.brandTint : AppColor.surfaceAlt)
     .borderRadius(12)
     .border({
       width: 1,
-      color: this.routingStrategy === value ? '#F97910' : 'transparent'
+      color: this.routingStrategy === value ? AppColor.brand : 'transparent'
     })
     .onClick(() => {
       this.routingStrategy = value;
@@ -269,15 +270,15 @@ struct RoutingPage {
       Image(icon)
         .width(22)
         .height(22)
-        .fillColor('#F97910')
+        .fillColor(AppColor.brand)
       Column({ space: 4 }) {
         Text(title)
           .fontSize(14)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#1C1B1F')
+          .fontColor(AppColor.textPrimary)
         Text(detail)
           .fontSize(11)
-          .fontColor('#6B7280')
+          .fontColor(AppColor.textSecondary)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
@@ -287,8 +288,8 @@ struct RoutingPage {
       Button('规则详情')
         .fontSize(11)
         .height(26)
-        .backgroundColor('#F3F4F6')
-        .fontColor('#4B5563')
+        .backgroundColor(AppColor.bg)
+        .fontColor(AppColor.textSecondary)
         .borderRadius(13)
         .padding({ left: 10, right: 10 })
         .onClick(() => {
@@ -297,7 +298,7 @@ struct RoutingPage {
     }
     .width('100%')
     .padding(12)
-    .backgroundColor('#F7F8FA')
+    .backgroundColor(AppColor.surfaceAlt)
     .borderRadius(12)
   }
 
@@ -320,16 +321,16 @@ struct RoutingPage {
       offset: { dx: 0, dy: -20 },
       primaryButton: {
         value: this.t('action.use') + ' / ' + '启用预设',
-        fontColor: '#FFFFFF',
-        backgroundColor: '#F97910',
+        fontColor: AppColor.onBrand,
+        backgroundColor: AppColor.brand,
         action: () => {
           SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.presetOpened', 'title', title));
         }
       },
       secondaryButton: {
         value: '关闭',
-        fontColor: '#4B5563',
-        backgroundColor: '#F3F4F6',
+        fontColor: AppColor.textSecondary,
+        backgroundColor: AppColor.bg,
         action: () => {}
       }
     })

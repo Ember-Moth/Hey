@@ -1,5 +1,6 @@
 import { AppLanguage } from '../../core/Profile';
 import { translate } from '../../core/I18n';
+import { AppColor } from '../../theme/Theme';
 
 @Component
 export struct AssetAddEditDialog {
@@ -29,7 +30,7 @@ export struct AssetAddEditDialog {
       Row()
         .width('100%')
         .height('100%')
-        .backgroundColor('rgba(0, 0, 0, 0.45)')
+        .backgroundColor(AppColor.scrim)
         .onClick(() => {
           this.onCancel();
         })
@@ -39,29 +40,29 @@ export struct AssetAddEditDialog {
         Text(this.title)
           .fontSize(16)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#111827')
+          .fontColor(AppColor.textPrimary)
 
         Column({ space: 10 }) {
           Text(this.t('assets.urlName'))
             .fontSize(12)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#4B5563')
+            .fontColor(AppColor.textSecondary)
             .alignSelf(ItemAlign.Start)
           TextInput({ text: this.inputName, placeholder: 'e.g. custom_geo' })
             .height(42)
-            .backgroundColor('#F3F4F6')
+            .backgroundColor(AppColor.bg)
             .borderRadius(8)
             .onChange((val) => this.inputName = val)
 
           Text(this.t('assets.urlAddress'))
             .fontSize(12)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#4B5563')
+            .fontColor(AppColor.textSecondary)
             .alignSelf(ItemAlign.Start)
             .margin({ top: 4 })
           TextInput({ text: this.inputUrl, placeholder: 'https://...' })
             .height(42)
-            .backgroundColor('#F3F4F6')
+            .backgroundColor(AppColor.bg)
             .borderRadius(8)
             .enabled(!this.inputUrl.startsWith('local://'))
             .onChange((val) => this.inputUrl = val)
@@ -70,8 +71,8 @@ export struct AssetAddEditDialog {
         Row({ space: 12 }) {
           Button('取消')
             .layoutWeight(1)
-            .backgroundColor('#E5E7EB')
-            .fontColor('#374151')
+            .backgroundColor(AppColor.border)
+            .fontColor(AppColor.textSecondary)
             .height(38)
             .borderRadius(8)
             .onClick(() => {
@@ -80,8 +81,8 @@ export struct AssetAddEditDialog {
 
           Button('确认')
             .layoutWeight(1)
-            .backgroundColor('#007DFF')
-            .fontColor('#FFFFFF')
+            .backgroundColor(AppColor.brand)
+            .fontColor(AppColor.onBrand)
             .height(38)
             .borderRadius(8)
             .onClick(() => {
@@ -91,9 +92,9 @@ export struct AssetAddEditDialog {
       }
       .width('85%')
       .padding(20)
-      .backgroundColor('#FFFFFF')
+      .backgroundColor(AppColor.surface)
       .borderRadius(16)
-      .shadow({ radius: 16, color: 'rgba(0, 0, 0, 0.1)', offsetX: 0, offsetY: 8 })
+      .shadow({ radius: 16, color: AppColor.shadowCard, offsetX: 0, offsetY: 8 })
     }
     .width('100%')
     .height('100%')

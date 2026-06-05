@@ -1,6 +1,7 @@
 import { ProxyNode, SubscriptionGroup } from '../../core/Profile';
 import { IconButton } from '../../components/IconButton';
 import { ProxyNodeHandler } from '../servers/ServerCard';
+import { AppColor } from '../../theme/Theme';
 
 export type SubscriptionGroupHandler = (group: SubscriptionGroup) => void;
 
@@ -48,12 +49,12 @@ export struct SubscriptionGroupListRow {
           Text(this.group.name)
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#1C1B1F')
+            .fontColor(AppColor.textPrimary)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(this.summary)
             .fontSize(13)
-            .fontColor('#49454F')
+            .fontColor(AppColor.textSecondary)
         }
         .layoutWeight(1)
 
@@ -61,15 +62,15 @@ export struct SubscriptionGroupListRow {
           icon: this.isSelected ? $r('app.media.ic_check') : $r('app.media.ic_chevron_right'),
           buttonSize: 42,
           iconSize: this.isSelected ? 22 : 28,
-          iconColor: this.isSelected ? '#FFFFFF' : '#1C1B1F',
-          buttonBackground: this.isSelected ? '#F97910' : '#00000000',
+          iconColor: this.isSelected ? AppColor.onBrand : AppColor.textPrimary,
+          buttonBackground: this.isSelected ? AppColor.brand : '#00000000',
           onAction: () => {
             this.onSelect(this.group);
           }
         })
         Toggle({ type: ToggleType.Switch, isOn: this.group.enabled })
-          .selectedColor('#F97910')
-          .switchPointColor('#FFFFFF')
+          .selectedColor(AppColor.brand)
+          .switchPointColor(AppColor.onBrand)
           .onChange((_isOn: boolean) => {
             this.onToggle(this.group);
           })
@@ -77,7 +78,7 @@ export struct SubscriptionGroupListRow {
           icon: $r('app.media.ic_delete'),
           buttonSize: 42,
           iconSize: 24,
-          iconColor: '#1C1B1F',
+          iconColor: AppColor.textPrimary,
           onAction: () => {
             this.onDelete(this.group);
           }
@@ -87,11 +88,11 @@ export struct SubscriptionGroupListRow {
       .padding({ left: 24, right: 12, top: 14, bottom: 14 })
       Divider()
         .strokeWidth(1)
-        .color('#E0E0E0')
+        .color(AppColor.divider)
         .margin({ left: 24 })
     }
     .width('100%')
-    .backgroundColor(this.isSelected ? '#FFF7ED' : '#FFFFFF')
+    .backgroundColor(this.isSelected ? AppColor.brandTint : AppColor.surface)
   }
 }
 
@@ -113,12 +114,12 @@ export struct SubscriptionNodeListRow {
           Text(this.node.name)
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#1C1B1F')
+            .fontColor(AppColor.textPrimary)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(this.node.protocol.toUpperCase())
             .fontSize(13)
-            .fontColor('#F97910')
+            .fontColor(AppColor.brand)
         }
         .layoutWeight(1)
 
@@ -132,8 +133,8 @@ export struct SubscriptionNodeListRow {
           icon: $r('app.media.ic_check'),
           buttonSize: 42,
           iconSize: 22,
-          iconColor: this.isSelected ? '#FFFFFF' : '#1C1B1F',
-          buttonBackground: this.isSelected ? '#F97910' : '#00000000',
+          iconColor: this.isSelected ? AppColor.onBrand : AppColor.textPrimary,
+          buttonBackground: this.isSelected ? AppColor.brand : '#00000000',
           isEnabled: !this.isBusy,
           onAction: () => {
             this.onSelect(this.node);
@@ -144,10 +145,10 @@ export struct SubscriptionNodeListRow {
       .padding({ left: 24, right: 12, top: 14, bottom: 14 })
       Divider()
         .strokeWidth(1)
-        .color('#E0E0E0')
+        .color(AppColor.divider)
         .margin({ left: 24 })
     }
     .width('100%')
-    .backgroundColor(this.isSelected ? '#FFF7ED' : '#FFFFFF')
+    .backgroundColor(this.isSelected ? AppColor.brandTint : AppColor.surface)
   }
 }

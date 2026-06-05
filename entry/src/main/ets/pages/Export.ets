@@ -7,6 +7,7 @@ import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
+import { AppColor } from '../theme/Theme';
 
 @Entry
 @Component
@@ -33,7 +34,7 @@ struct ExportPage {
           Text(this.exportTitle)
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#111827')
+            .fontColor(AppColor.textPrimary)
             .width('100%')
 
           TextArea({
@@ -42,8 +43,8 @@ struct ExportPage {
           })
             .height(420)
             .fontSize(12)
-            .fontColor('#111827')
-            .backgroundColor('#FFFFFF')
+            .fontColor(AppColor.textPrimary)
+            .backgroundColor(AppColor.surface)
             .borderRadius(8)
             .padding(10)
             .onChange((value: string) => {
@@ -52,7 +53,7 @@ struct ExportPage {
 
           Text(this.t('export.copyHint'))
             .fontSize(12)
-            .fontColor('#6B7280')
+            .fontColor(AppColor.textSecondary)
             .width('100%')
         }
         .width('100%')
@@ -63,7 +64,7 @@ struct ExportPage {
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F6F8FA')
+    .backgroundColor(AppColor.bg)
   }
 
   private async loadState(): Promise<void> {

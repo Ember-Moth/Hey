@@ -8,6 +8,7 @@ import { SETTINGS_CONTROLLER, SettingsDraft } from '../features/settings/Setting
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
+import { AppColor } from '../theme/Theme';
 
 interface AppItem {
   bundleName: string;
@@ -130,7 +131,7 @@ struct PerAppPage {
             Text("过滤策略模式")
               .fontSize(14)
               .fontWeight(FontWeight.Medium)
-              .fontColor('#333333')
+              .fontColor(AppColor.textPrimary)
               .width('100%')
               .margin({ bottom: 8 })
 
@@ -146,7 +147,7 @@ struct PerAppPage {
                   })
                 Text("仅绕过所选 (黑名单)")
                   .fontSize(14)
-                  .fontColor(this.perAppProxyBypass ? '#007DFF' : '#555555')
+                  .fontColor(this.perAppProxyBypass ? AppColor.brand : AppColor.textSecondary)
                   .onClick(() => {
                     this.perAppProxyBypass = true;
                     this.saveSettings();
@@ -164,7 +165,7 @@ struct PerAppPage {
                   })
                 Text("仅代理所选 (白名单)")
                   .fontSize(14)
-                  .fontColor(!this.perAppProxyBypass ? '#007DFF' : '#555555')
+                  .fontColor(!this.perAppProxyBypass ? AppColor.brand : AppColor.textSecondary)
                   .onClick(() => {
                     this.perAppProxyBypass = false;
                     this.saveSettings();
@@ -174,7 +175,7 @@ struct PerAppPage {
             .width('100%')
             .padding({ left: 4 })
           }
-          .backgroundColor('#FFFFFF')
+          .backgroundColor(AppColor.surface)
           .borderRadius(8)
           .padding(12)
           .width('100%')
@@ -205,7 +206,7 @@ struct PerAppPage {
               })
             Text("系统应用")
               .fontSize(12)
-              .fontColor('#666666')
+              .fontColor(AppColor.textSecondary)
           }
           .margin({ left: 10 })
         }
@@ -215,8 +216,8 @@ struct PerAppPage {
         // 快捷全选反选操作
         Row({ space: 16 }) {
           Button("全部全选", { type: ButtonType.Capsule })
-            .backgroundColor('#E8E8E8')
-            .fontColor('#007DFF')
+            .backgroundColor(AppColor.surfaceAlt)
+            .fontColor(AppColor.brand)
             .fontSize(12)
             .height(26)
             .onClick(() => {
@@ -227,8 +228,8 @@ struct PerAppPage {
             })
 
           Button("全部清除", { type: ButtonType.Capsule })
-            .backgroundColor('#E8E8E8')
-            .fontColor('#FF3B30')
+            .backgroundColor(AppColor.surfaceAlt)
+            .fontColor(AppColor.danger)
             .fontSize(12)
             .height(26)
             .onClick(() => {
@@ -239,7 +240,7 @@ struct PerAppPage {
 
           Text(`已选: ${this.perAppProxyList.length} 个应用`)
             .fontSize(12)
-            .fontColor('#666666')
+            .fontColor(AppColor.textSecondary)
             .layoutWeight(1)
             .textAlign(TextAlign.End)
         }
@@ -256,12 +257,12 @@ struct PerAppPage {
                   Text(app.label.charAt(0))
                     .fontSize(16)
                     .fontWeight(FontWeight.Bold)
-                    .fontColor('#FFFFFF')
+                    .fontColor(AppColor.onBrand)
                 }
                 .width(40)
                 .height(40)
                 .borderRadius(20)
-                .backgroundColor(app.isSystem ? '#8E8E93' : '#007DFF')
+                .backgroundColor(app.isSystem ? AppColor.textTertiary : AppColor.brand)
                 .justifyContent(FlexAlign.Center)
                 .alignItems(VerticalAlign.Center)
                 .margin({ right: 12 })
@@ -271,11 +272,11 @@ struct PerAppPage {
                   Text(app.label)
                     .fontSize(15)
                     .fontWeight(FontWeight.Medium)
-                    .fontColor('#333333')
+                    .fontColor(AppColor.textPrimary)
                     .margin({ bottom: 2 })
                   Text(app.bundleName)
                     .fontSize(11)
-                    .fontColor('#888888')
+                    .fontColor(AppColor.textTertiary)
                 }
                 .alignItems(HorizontalAlign.Start)
                 .layoutWeight(1)
@@ -295,7 +296,7 @@ struct PerAppPage {
                   })
               }
               .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-              .backgroundColor('#FFFFFF')
+              .backgroundColor(AppColor.surface)
               .borderRadius(8)
               .width('100%')
             }
@@ -307,11 +308,11 @@ struct PerAppPage {
 
         // 底部手动录入追加区（解决包名枚举限制）
         Column() {
-          Divider().color('#E5E5E5').margin({ bottom: 8 })
+          Divider().color(AppColor.divider).margin({ bottom: 8 })
           Text("手动添加未列出的应用包名")
             .fontSize(12)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#666666')
+            .fontColor(AppColor.textSecondary)
             .width('100%')
             .margin({ bottom: 6 })
 
@@ -331,14 +332,14 @@ struct PerAppPage {
             Button("添加")
               .height(36)
               .fontSize(13)
-              .backgroundColor('#007DFF')
+              .backgroundColor(AppColor.brand)
               .onClick(() => {
                 this.addCustomPackage();
               })
           }
           .width('100%')
         }
-        .backgroundColor('#F6F8FA')
+        .backgroundColor(AppColor.bg)
         .padding({ left: 14, right: 14, bottom: 12, top: 4 })
         .width('100%')
       } else {
@@ -351,10 +352,10 @@ struct PerAppPage {
           Text("分应用代理已关闭")
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#999999')
+            .fontColor(AppColor.textTertiary)
           Text("当前所有应用的流量均会默认经过虚拟网卡代理，您可以在上方开启该功能进行按应用精准分流。")
             .fontSize(13)
-            .fontColor('#AAAAAA')
+            .fontColor(AppColor.textTertiary)
             .textAlign(TextAlign.Center)
             .width('80%')
             .lineHeight(18)
@@ -366,7 +367,7 @@ struct PerAppPage {
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F6F8FA')
+    .backgroundColor(AppColor.bg)
   }
 
   // 手动新增包名逻辑
@@ -446,8 +447,8 @@ struct InputLabelPair {
     TextInput({ placeholder: this.placeholder, text: this.text })
       .fontSize(12)
       .height(36)
-      .placeholderColor('#CCCCCC')
-      .backgroundColor('#FFFFFF')
+      .placeholderColor(AppColor.textTertiary)
+      .backgroundColor(AppColor.surface)
       .borderRadius(6)
       .onChange((v: string) => {
         this.text = v;

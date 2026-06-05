@@ -7,6 +7,7 @@ import { translate } from '../../core/I18n';
 import { ASSETS_CONTROLLER } from '../../features/assets/AssetsController';
 import { AssetStore, CustomAssetUrl } from '../../storage/AssetStore';
 import { AssetAddEditDialog } from './AssetAddEditDialog';
+import { AppColor } from '../../theme/Theme';
 
 @Component
 export struct CustomAssetList {
@@ -53,7 +54,7 @@ export struct CustomAssetList {
             Image($r('app.media.ic_arrow_back'))
               .width(24)
               .height(24)
-              .fillColor('#1F2937')
+              .fillColor(AppColor.textPrimary)
           }
           .width(40)
           .height(40)
@@ -65,7 +66,7 @@ export struct CustomAssetList {
           Text(this.t('assets.userUrls.title'))
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#1F2937')
+            .fontColor(AppColor.textPrimary)
             .margin({ left: 8 })
 
           Blank()
@@ -73,7 +74,7 @@ export struct CustomAssetList {
         .width('100%')
         .height(56)
         .padding({ left: 8, right: 16 })
-        .backgroundColor('#FFFFFF')
+        .backgroundColor(AppColor.surface)
         .alignItems(VerticalAlign.Center)
 
         List({ space: 12 }) {
@@ -85,22 +86,22 @@ export struct CustomAssetList {
                     Image($r('app.media.ic_article'))
                       .width(16)
                       .height(16)
-                      .fillColor('#10B981')
+                      .fillColor(AppColor.success)
                   }
                   .width(28)
                   .height(28)
                   .borderRadius(6)
-                  .backgroundColor('#ECFDF5')
+                  .backgroundColor(AppColor.successTint)
                   .justifyContent(FlexAlign.Center)
 
                   Column() {
                     Text(item.name)
                       .fontSize(15)
                       .fontWeight(FontWeight.Bold)
-                      .fontColor('#111827')
+                      .fontColor(AppColor.textPrimary)
                     Text(item.url.startsWith('local://') ? '本地导入规则库' : item.url)
                       .fontSize(11)
-                      .fontColor('#6B7280')
+                      .fontColor(AppColor.textSecondary)
                       .maxLines(1)
                       .textOverflow({ overflow: TextOverflow.Ellipsis })
                       .width(200)
@@ -111,12 +112,12 @@ export struct CustomAssetList {
 
                   Text(this.getCustomFileStatus(item.name))
                     .fontSize(12)
-                    .fontColor('#9CA3AF')
+                    .fontColor(AppColor.textTertiary)
                     .fontWeight(FontWeight.Medium)
                 }
                 .width('100%')
 
-                Divider().color('#F3F4F6').strokeWidth(1).margin({ top: 4, bottom: 4 })
+                Divider().color(AppColor.divider).strokeWidth(1).margin({ top: 4, bottom: 4 })
 
                 Row() {
                   Blank()
@@ -126,16 +127,16 @@ export struct CustomAssetList {
                       Button() {
                         Row({ space: 4 }) {
                           if (this.downloadingFile === item.name) {
-                            LoadingProgress().width(12).height(12).color('#007DFF')
+                            LoadingProgress().width(12).height(12).color(AppColor.brand)
                           } else {
                             Image($r('app.media.ic_refresh'))
                               .width(12)
                               .height(12)
-                              .fillColor('#007DFF')
+                              .fillColor(AppColor.brand)
                           }
                           Text(this.downloadingFile === item.name ? '下载中' : '更新')
                             .fontSize(12)
-                            .fontColor('#007DFF')
+                            .fontColor(AppColor.brand)
                             .fontWeight(FontWeight.Medium)
                         }
                       }
@@ -150,10 +151,10 @@ export struct CustomAssetList {
                           Image($r('app.media.ic_folder'))
                             .width(12)
                             .height(12)
-                            .fillColor('#007DFF')
+                            .fillColor(AppColor.brand)
                           Text('覆盖导入')
                             .fontSize(12)
-                            .fontColor('#007DFF')
+                            .fontColor(AppColor.brand)
                             .fontWeight(FontWeight.Medium)
                         }
                       }
@@ -168,10 +169,10 @@ export struct CustomAssetList {
                         Image($r('app.media.ic_edit'))
                           .width(12)
                           .height(12)
-                          .fillColor('#4B5563')
+                          .fillColor(AppColor.textSecondary)
                         Text('编辑')
                           .fontSize(12)
-                          .fontColor('#4B5563')
+                          .fontColor(AppColor.textSecondary)
                           .fontWeight(FontWeight.Medium)
                       }
                     }
@@ -189,10 +190,10 @@ export struct CustomAssetList {
                         Image($r('app.media.ic_delete'))
                           .width(12)
                           .height(12)
-                          .fillColor('#EF4444')
+                          .fillColor(AppColor.danger)
                         Text('删除')
                           .fontSize(12)
-                          .fontColor('#EF4444')
+                          .fontColor(AppColor.danger)
                           .fontWeight(FontWeight.Medium)
                       }
                     }
@@ -205,9 +206,9 @@ export struct CustomAssetList {
                 .width('100%')
               }
               .padding(12)
-              .backgroundColor('#FFFFFF')
+              .backgroundColor(AppColor.surface)
               .borderRadius(12)
-              .shadow({ radius: 4, color: 'rgba(0, 0, 0, 0.02)', offsetX: 0, offsetY: 1 })
+              .shadow({ radius: 4, color: AppColor.shadowCard, offsetX: 0, offsetY: 1 })
             }
           }, (item: CustomAssetUrl) => item.id)
         }
@@ -222,11 +223,11 @@ export struct CustomAssetList {
               Image($r('app.media.ic_add'))
                 .width(18)
                 .height(18)
-                .fillColor('#FFFFFF')
+                .fillColor(AppColor.onBrand)
               Text('添加资源 URL')
                 .fontSize(15)
                 .fontWeight(FontWeight.Bold)
-                .fontColor('#FFFFFF')
+                .fontColor(AppColor.onBrand)
             }
             .justifyContent(FlexAlign.Center)
             .width('100%')
@@ -234,7 +235,7 @@ export struct CustomAssetList {
           .width('90%')
           .height(46)
           .margin({ bottom: 20, top: 12 })
-          .backgroundColor('#007DFF')
+          .backgroundColor(AppColor.brand)
           .borderRadius(12)
           .shadow({ radius: 8, color: 'rgba(0, 125, 255, 0.2)', offsetX: 0, offsetY: 4 })
           .onClick(() => {
@@ -246,12 +247,12 @@ export struct CustomAssetList {
           })
         }
         .width('100%')
-        .backgroundColor('#FFFFFF')
-        .border({ width: { top: 1 }, color: '#F3F4F6' })
+        .backgroundColor(AppColor.surface)
+        .border({ width: { top: 1 }, color: AppColor.divider })
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#F6F8FA')
+      .backgroundColor(AppColor.bg)
 
       // 添加/编辑弹窗 Overlay
       if (this.showAddEditDialog) {

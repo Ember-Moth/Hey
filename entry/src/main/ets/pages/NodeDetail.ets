@@ -7,6 +7,7 @@ import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
+import { AppColor } from '../theme/Theme';
 
 interface NodeDetailParams {
   nodeId?: string;
@@ -50,11 +51,11 @@ struct NodeDetailPage {
           Text(this.node.name.length > 0 ? this.node.name : this.t('node.detail.missing'))
             .fontSize(20)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#111827')
+            .fontColor(AppColor.textPrimary)
             .width('100%')
           Text(`${this.node.protocol.toUpperCase()}  ${this.node.sourceUrl.length > 0 ? this.t('node.source.subscription') : this.t('node.source.manual')}`)
             .fontSize(12)
-            .fontColor('#6B7280')
+            .fontColor(AppColor.textSecondary)
             .width('100%')
 
           Row({ space: 8 }) {
@@ -62,8 +63,8 @@ struct NodeDetailPage {
               .height(40)
               .layoutWeight(1)
               .enabled(this.node.id.length > 0 && !SHARED_RUNTIME_CONTROLLER.isBusy())
-              .backgroundColor(this.node.id === this.selectedNodeId ? '#166534' : '#1D4ED8')
-              .fontColor('#FFFFFF')
+              .backgroundColor(this.node.id === this.selectedNodeId ? AppColor.success : AppColor.brand)
+              .fontColor(AppColor.onBrand)
               .borderRadius(8)
               .onClick(() => {
                 this.selectNode();
@@ -72,8 +73,8 @@ struct NodeDetailPage {
               .height(40)
               .width(82)
               .enabled(this.node.id.length > 0)
-              .backgroundColor('#B42318')
-              .fontColor('#FFFFFF')
+              .backgroundColor(AppColor.danger)
+              .fontColor(AppColor.onBrand)
               .borderRadius(8)
               .onClick(() => {
                 this.removeNode();
@@ -84,23 +85,23 @@ struct NodeDetailPage {
           if (this.lastError.length > 0) {
             Text(this.lastError)
               .fontSize(12)
-              .fontColor('#B42318')
+              .fontColor(AppColor.danger)
               .width('100%')
               .padding(10)
-              .backgroundColor('#FEF3F2')
+              .backgroundColor(AppColor.dangerTint)
               .borderRadius(6)
           }
 
           Text(this.t('node.detail.outbound'))
             .fontSize(14)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#111827')
+            .fontColor(AppColor.textPrimary)
             .width('100%')
           TextArea({ text: this.node.outboundJson, placeholder: this.t('placeholder.outbound') })
             .height(280)
             .fontSize(12)
-            .fontColor('#111827')
-            .backgroundColor('#FFFFFF')
+            .fontColor(AppColor.textPrimary)
+            .backgroundColor(AppColor.surface)
             .borderRadius(8)
             .padding(10)
 
@@ -108,13 +109,13 @@ struct NodeDetailPage {
             Text(this.t('node.detail.rawLink'))
               .fontSize(14)
               .fontWeight(FontWeight.Medium)
-              .fontColor('#111827')
+              .fontColor(AppColor.textPrimary)
               .width('100%')
             TextArea({ text: this.node.rawLink, placeholder: '' })
               .height(120)
               .fontSize(12)
-              .fontColor('#111827')
-              .backgroundColor('#FFFFFF')
+              .fontColor(AppColor.textPrimary)
+              .backgroundColor(AppColor.surface)
               .borderRadius(8)
               .padding(10)
           }
@@ -127,7 +128,7 @@ struct NodeDetailPage {
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F6F8FA')
+    .backgroundColor(AppColor.bg)
   }
 
   private async loadState(): Promise<void> {

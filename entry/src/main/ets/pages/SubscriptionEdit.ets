@@ -8,6 +8,7 @@ import { AppRoute } from '../shell/AppRoute';
 import { PageHeader } from '../shell/PageHeader';
 import { router, promptAction } from '@kit.ArkUI';
 import { pasteboard } from '@kit.BasicServicesKit';
+import { AppColor } from '../theme/Theme';
 
 @Entry
 @Component
@@ -52,13 +53,13 @@ struct SubscriptionEditPage {
                 Column()
                   .width(4)
                   .height(16)
-                  .backgroundColor('#F97910')
+                  .backgroundColor(AppColor.brand)
                   .borderRadius(2)
-                
+
                 Text('分组名称')
                   .fontSize(15)
                   .fontWeight(FontWeight.Bold)
-                  .fontColor('#111827')
+                  .fontColor(AppColor.textPrimary)
               }
               .width('100%')
               .alignItems(VerticalAlign.Center)
@@ -66,9 +67,9 @@ struct SubscriptionEditPage {
               TextInput({ text: this.groupName, placeholder: '请输入分组名称' })
                 .height(48)
                 .fontSize(15)
-                .fontColor('#111827')
-                .placeholderColor('#9CA3AF')
-                .backgroundColor('#F3F4F6')
+                .fontColor(AppColor.textPrimary)
+                .placeholderColor(AppColor.textTertiary)
+                .backgroundColor(AppColor.bg)
                 .borderRadius(10)
                 .onChange((val) => {
                   this.groupName = val;
@@ -76,15 +77,15 @@ struct SubscriptionEditPage {
 
               Text('为您的配置订阅起一个好记的名字，例如“极速专线”或“主力订阅”。')
                 .fontSize(12)
-                .fontColor('#9CA3AF')
+                .fontColor(AppColor.textTertiary)
                 .width('100%')
                 .lineHeight(16)
             }
             .width('100%')
             .padding(16)
-            .backgroundColor('#FFFFFF')
+            .backgroundColor(AppColor.surface)
             .borderRadius(16)
-            .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+            .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
 
             // 卡片二：订阅链接
             Column({ space: 14 }) {
@@ -93,13 +94,13 @@ struct SubscriptionEditPage {
                 Column()
                   .width(4)
                   .height(16)
-                  .backgroundColor('#F97910')
+                  .backgroundColor(AppColor.brand)
                   .borderRadius(2)
-                
+
                 Text('订阅链接 (URL)')
                   .fontSize(15)
                   .fontWeight(FontWeight.Bold)
-                  .fontColor('#111827')
+                  .fontColor(AppColor.textPrimary)
               }
               .width('100%')
               .alignItems(VerticalAlign.Center)
@@ -108,7 +109,7 @@ struct SubscriptionEditPage {
                 Image($r('app.media.ic_link'))
                   .width(20)
                   .height(20)
-                  .fillColor('#6B7280')
+                  .fillColor(AppColor.textSecondary)
                   .margin({ left: 12, right: 8 })
 
                 TextInput({
@@ -118,8 +119,8 @@ struct SubscriptionEditPage {
                   .layoutWeight(1)
                   .height(46)
                   .fontSize(14)
-                  .fontColor('#111827')
-                  .placeholderColor('#9CA3AF')
+                  .fontColor(AppColor.textPrimary)
+                  .placeholderColor(AppColor.textTertiary)
                   .backgroundColor('#00000000')
                   .onChange((value: string) => {
                     this.subscriptionUrl = value;
@@ -131,10 +132,10 @@ struct SubscriptionEditPage {
                     Button() {
                       Text('✕')
                         .fontSize(12)
-                        .fontColor('#4B5563')
+                        .fontColor(AppColor.textSecondary)
                         .fontWeight(FontWeight.Bold)
                     }
-                    .backgroundColor('#E5E7EB')
+                    .backgroundColor(AppColor.border)
                     .width(28)
                     .height(28)
                     .borderRadius(14)
@@ -147,9 +148,9 @@ struct SubscriptionEditPage {
                     Image($r('app.media.ic_article'))
                       .width(15)
                       .height(15)
-                      .fillColor('#4B5563')
+                      .fillColor(AppColor.textSecondary)
                   }
-                  .backgroundColor('#E5E7EB')
+                  .backgroundColor(AppColor.border)
                   .width(28)
                   .height(28)
                   .borderRadius(14)
@@ -161,9 +162,9 @@ struct SubscriptionEditPage {
                     Image($r('app.media.ic_qr_code'))
                       .width(15)
                       .height(15)
-                      .fillColor('#4B5563')
+                      .fillColor(AppColor.textSecondary)
                   }
-                  .backgroundColor('#E5E7EB')
+                  .backgroundColor(AppColor.border)
                   .width(28)
                   .height(28)
                   .borderRadius(14)
@@ -175,21 +176,21 @@ struct SubscriptionEditPage {
               }
               .width('100%')
               .height(48)
-              .backgroundColor('#F3F4F6')
+              .backgroundColor(AppColor.bg)
               .borderRadius(10)
               .alignItems(VerticalAlign.Center)
 
               Text('目前支持导入解析标准的 Shadowsocks、VMess、VLESS 和 Trojan 等格式的链接内容。')
                 .fontSize(12)
-                .fontColor('#9CA3AF')
+                .fontColor(AppColor.textTertiary)
                 .width('100%')
                 .lineHeight(16)
             }
             .width('100%')
             .padding(16)
-            .backgroundColor('#FFFFFF')
+            .backgroundColor(AppColor.surface)
             .borderRadius(16)
-            .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+            .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
 
           }
           .width('100%')
@@ -208,13 +209,13 @@ struct SubscriptionEditPage {
                 LoadingProgress()
                   .width(20)
                   .height(20)
-                  .color('#FFFFFF')
+                  .color(AppColor.onBrand)
                   .margin({ right: 8 })
               }
               Text('保存配置分组')
                 .fontSize(16)
                 .fontWeight(FontWeight.Bold)
-                .fontColor(this.isSaveEnabled() ? '#FFFFFF' : '#9CA3AF')
+                .fontColor(this.isSaveEnabled() ? AppColor.onBrand : AppColor.textTertiary)
             }
           }
           .width('100%')
@@ -224,12 +225,12 @@ struct SubscriptionEditPage {
           .opacity(this.isSaveEnabled() ? 1.0 : 0.65)
           .linearGradient(this.isSaveEnabled() ? {
             angle: 90,
-            colors: [['#FF8F3D', 0.0], ['#F97910', 1.0]]
+            colors: [[AppColor.brandStrong, 0.0], [AppColor.brand, 1.0]]
           } : {
             angle: 90,
-            colors: [['#E5E7EB', 0.0], ['#E5E7EB', 1.0]]
+            colors: [[AppColor.border, 0.0], [AppColor.border, 1.0]]
           })
-          .shadow(this.isSaveEnabled() ? { radius: 10, color: '#30F97910', offsetX: 0, offsetY: 4 } : undefined)
+          .shadow(this.isSaveEnabled() ? { radius: 10, color: AppColor.shadowBrand, offsetX: 0, offsetY: 4 } : undefined)
           // 微缩按压弹性效果
           .scale({ x: this.isPressed ? 0.96 : 1.0, y: this.isPressed ? 0.96 : 1.0 })
           .animation({ duration: 150, curve: Curve.EaseOut })
@@ -246,7 +247,7 @@ struct SubscriptionEditPage {
         }
         .width('100%')
         .padding({ left: 16, right: 16, top: 16, bottom: 24 })
-        .backgroundColor('#C0F3F4F6')
+        .backgroundColor(AppColor.bg)
         .backgroundBlurStyle(BlurStyle.Thin)
       }
       .layoutWeight(1)
@@ -254,7 +255,7 @@ struct SubscriptionEditPage {
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F3F4F6')
+    .backgroundColor(AppColor.bg)
   }
 
   private isSaveEnabled(): boolean {

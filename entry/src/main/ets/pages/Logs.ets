@@ -8,6 +8,7 @@ import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { PageHeader } from '../shell/PageHeader';
 import { formatBytes } from '../utils/Formatters';
 import { localizeCoreMessage } from '../utils/LocalizationPresenter';
+import { AppColor } from '../theme/Theme';
 
 const EMPTY_STATS: RuntimeStats = {
   uploadBytes: 0,
@@ -82,7 +83,7 @@ struct LogsPage {
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F6F8FA')
+    .backgroundColor(AppColor.bg)
   }
 
   private async loadState(): Promise<void> {

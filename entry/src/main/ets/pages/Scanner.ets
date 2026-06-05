@@ -12,6 +12,7 @@ import { AppRoute } from '../shell/AppRoute';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
+import { AppColor } from '../theme/Theme';
 
 @Entry
 @Component
@@ -54,17 +55,17 @@ struct ScannerPage {
               Image($r('app.media.ic_qr_code'))
                 .width(28)
                 .height(28)
-                .fillColor('#F97910')
+                .fillColor(AppColor.brand)
                 .margin({ right: 12 })
-              
+
               Column() {
                 Text('相机扫码导入')
                   .fontSize(16)
                   .fontWeight(FontWeight.Bold)
-                  .fontColor('#111827')
+                  .fontColor(AppColor.textPrimary)
                 Text('点击拉起相机扫码，支持从相册选择二维码图片')
                   .fontSize(12)
-                  .fontColor('#6B7280')
+                  .fontColor(AppColor.textSecondary)
                   .margin({ top: 2 })
               }
               .alignItems(HorizontalAlign.Start)
@@ -73,16 +74,16 @@ struct ScannerPage {
               Image($r('app.media.ic_chevron_right'))
                 .width(18)
                 .height(18)
-                .fillColor('#9CA3AF')
+                .fillColor(AppColor.textTertiary)
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
           }
           .width('100%')
           .padding(16)
-          .backgroundColor('#FFFFFF')
+          .backgroundColor(AppColor.surface)
           .borderRadius(16)
-          .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
           .scale({ x: this.isPressedScanCard ? 0.98 : 1.0, y: this.isPressedScanCard ? 0.98 : 1.0 })
           .animation({ duration: 100, curve: Curve.EaseOut })
           .onTouch((event) => {
@@ -102,15 +103,15 @@ struct ScannerPage {
               Text('手动粘贴与解析')
                 .fontSize(15)
                 .fontWeight(FontWeight.Bold)
-                .fontColor('#111827')
-              
+                .fontColor(AppColor.textPrimary)
+
               Blank()
-              
+
               Row({ space: 8 }) {
                 Button('粘贴')
                   .fontSize(12)
-                  .fontColor('#374151')
-                  .backgroundColor('#E5E7EB')
+                  .fontColor(AppColor.textSecondary)
+                  .backgroundColor(AppColor.border)
                   .height(28)
                   .padding({ left: 10, right: 10 })
                   .borderRadius(6)
@@ -121,8 +122,8 @@ struct ScannerPage {
                 if (this.importBuffer.length > 0) {
                   Button('清空')
                     .fontSize(12)
-                    .fontColor('#EF4444')
-                    .backgroundColor('#FEE2E2')
+                    .fontColor(AppColor.danger)
+                    .backgroundColor(AppColor.dangerTint)
                     .height(28)
                     .padding({ left: 10, right: 10 })
                     .borderRadius(6)
@@ -142,8 +143,8 @@ struct ScannerPage {
             })
               .height(160)
               .fontSize(13)
-              .fontColor('#111827')
-              .backgroundColor('#F9FAFB')
+              .fontColor(AppColor.textPrimary)
+              .backgroundColor(AppColor.surfaceAlt)
               .borderRadius(10)
               .padding(12)
               .onChange((value: string) => {
@@ -152,15 +153,15 @@ struct ScannerPage {
 
             Text('支持粘贴 vmess://、vless://、ss://、trojan://、hysteria2:// 等协议链接，或 http://、https:// 订阅地址。')
               .fontSize(11)
-              .fontColor('#9CA3AF')
+              .fontColor(AppColor.textTertiary)
               .width('100%')
               .lineHeight(16)
           }
           .width('100%')
           .padding(16)
-          .backgroundColor('#FFFFFF')
+          .backgroundColor(AppColor.surface)
           .borderRadius(16)
-          .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
 
           // 模块三：错误提示卡片
           if (this.lastError.length > 0) {
@@ -170,28 +171,28 @@ struct ScannerPage {
                   .width(6)
                   .height(6)
                   .borderRadius(3)
-                  .backgroundColor('#EF4444')
-                
+                  .backgroundColor(AppColor.danger)
+
                 Text('导入解析失败')
                   .fontSize(14)
                   .fontWeight(FontWeight.Bold)
-                  .fontColor('#B91C1C')
+                  .fontColor(AppColor.danger)
               }
               .width('100%')
               .alignItems(VerticalAlign.Center)
 
               Text(this.lastError)
                 .fontSize(12)
-                .fontColor('#991B1B')
+                .fontColor(AppColor.danger)
                 .width('100%')
                 .lineHeight(16)
             }
             .width('100%')
             .padding(14)
-            .backgroundColor('#FEF2F2')
+            .backgroundColor(AppColor.dangerTint)
             .borderRadius(12)
             .borderWidth(1)
-            .borderColor('#FCA5A5')
+            .borderColor(AppColor.danger)
           }
 
           // 模块四：解析导入按钮
@@ -201,13 +202,13 @@ struct ScannerPage {
                 LoadingProgress()
                   .width(20)
                   .height(20)
-                  .color('#FFFFFF')
+                  .color(AppColor.onBrand)
                   .margin({ right: 8 })
               }
               Text(this.t('action.importResult'))
                 .fontSize(16)
                 .fontWeight(FontWeight.Bold)
-                .fontColor(this.isImportEnabled() ? '#FFFFFF' : '#9CA3AF')
+                .fontColor(this.isImportEnabled() ? AppColor.onBrand : AppColor.textTertiary)
             }
           }
           .width('100%')
@@ -217,10 +218,10 @@ struct ScannerPage {
           .opacity(this.isImportEnabled() ? 1.0 : 0.65)
           .linearGradient(this.isImportEnabled() ? {
             angle: 90,
-            colors: [['#FF8F3D', 0.0], ['#F97910', 1.0]]
+            colors: [[AppColor.brandStrong, 0.0], [AppColor.brand, 1.0]]
           } : {
             angle: 90,
-            colors: [['#E5E7EB', 0.0], ['#E5E7EB', 1.0]]
+            colors: [[AppColor.border, 0.0], [AppColor.border, 1.0]]
           })
           .scale({ x: this.isPressedImportBtn ? 0.97 : 1.0, y: this.isPressedImportBtn ? 0.97 : 1.0 })
           .animation({ duration: 150, curve: Curve.EaseOut })
@@ -243,7 +244,7 @@ struct ScannerPage {
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F3F4F6')
+    .backgroundColor(AppColor.bg)
   }
 
   private isImportEnabled(): boolean {

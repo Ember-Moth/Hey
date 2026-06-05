@@ -7,6 +7,7 @@ import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
+import { AppColor } from '../theme/Theme';
 
 @Entry
 @Component
@@ -37,21 +38,21 @@ struct AboutPage {
             }
             .width(88)
             .height(88)
-            .backgroundColor('#FFFFFF')
+            .backgroundColor(AppColor.surface)
             .borderRadius(20)
             .justifyContent(FlexAlign.Center)
             .alignItems(HorizontalAlign.Center)
-            .shadow({ radius: 12, color: '#15000000', offsetX: 0, offsetY: 6 })
+            .shadow({ radius: 12, color: AppColor.shadowCard, offsetX: 0, offsetY: 6 })
             .margin({ bottom: 8 })
 
             Text('Hey')
               .fontSize(24)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#111827')
+              .fontColor(AppColor.textPrimary)
 
             Text(this.t('about.section.detail'))
               .fontSize(14)
-              .fontColor('#6B7280')
+              .fontColor(AppColor.textSecondary)
               .textAlign(TextAlign.Center)
               .padding({ left: 24, right: 24 })
           }
@@ -68,7 +69,7 @@ struct AboutPage {
                 this.openUrl('https://github.com/popsiclelmlm/Hey', this.t('about.official.title'));
               }
             })
-            Divider().color('#F3F4F6').strokeWidth(1).margin({ left: 16, right: 16 })
+            Divider().color(AppColor.divider).strokeWidth(1).margin({ left: 16, right: 16 })
             AboutItem({
               title: this.t('about.issues.title'),
               detail: this.t('about.issues.detail'),
@@ -76,7 +77,7 @@ struct AboutPage {
                 this.openUrl('https://github.com/popsiclelmlm/Hey/issues', this.t('about.issues.title'));
               }
             })
-            Divider().color('#F3F4F6').strokeWidth(1).margin({ left: 16, right: 16 })
+            Divider().color(AppColor.divider).strokeWidth(1).margin({ left: 16, right: 16 })
             AboutItem({
               title: this.t('about.update.title'),
               detail: this.t('about.update.detail'),
@@ -86,10 +87,10 @@ struct AboutPage {
               }
             })
           }
-          .backgroundColor('#FFFFFF')
+          .backgroundColor(AppColor.surface)
           .borderRadius(16)
           .width('100%')
-          .shadow({ radius: 8, color: '#06000000', offsetX: 0, offsetY: 2 })
+          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
           .clip(true)
 
           // Section 2: Technical Specifications & Parity
@@ -101,7 +102,7 @@ struct AboutPage {
                 this.openUrl('https://github.com/2rayng/v2rayNG', this.t('about.source.title'));
               }
             })
-            Divider().color('#F3F4F6').strokeWidth(1).margin({ left: 16, right: 16 })
+            Divider().color(AppColor.divider).strokeWidth(1).margin({ left: 16, right: 16 })
             AboutItem({
               title: this.t('about.core.title'),
               detail: this.t('about.core.detail'),
@@ -109,7 +110,7 @@ struct AboutPage {
                 this.openUrl('https://github.com/XTLS/Xray-core', this.t('about.core.title'));
               }
             })
-            Divider().color('#F3F4F6').strokeWidth(1).margin({ left: 16, right: 16 })
+            Divider().color(AppColor.divider).strokeWidth(1).margin({ left: 16, right: 16 })
             AboutItem({
               title: this.t('about.license.title'),
               detail: this.t('about.license.detail'),
@@ -119,10 +120,10 @@ struct AboutPage {
               }
             })
           }
-          .backgroundColor('#FFFFFF')
+          .backgroundColor(AppColor.surface)
           .borderRadius(16)
           .width('100%')
-          .shadow({ radius: 8, color: '#06000000', offsetX: 0, offsetY: 2 })
+          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
           .clip(true)
 
           // Section 3: Community & Developer
@@ -134,7 +135,7 @@ struct AboutPage {
                 this.openUrl('https://t.me/HeyClient', this.t('about.telegram.title'));
               }
             })
-            Divider().color('#F3F4F6').strokeWidth(1).margin({ left: 16, right: 16 })
+            Divider().color(AppColor.divider).strokeWidth(1).margin({ left: 16, right: 16 })
             AboutItem({
               title: this.t('about.author.title'),
               detail: this.t('about.author.detail'),
@@ -143,20 +144,20 @@ struct AboutPage {
               }
             })
           }
-          .backgroundColor('#FFFFFF')
+          .backgroundColor(AppColor.surface)
           .borderRadius(16)
           .width('100%')
-          .shadow({ radius: 8, color: '#06000000', offsetX: 0, offsetY: 2 })
+          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
           .clip(true)
 
           // Footer Copyright
           Column({ space: 4 }) {
             Text('Made with ❤️ for HarmonyOS NEXT')
               .fontSize(11)
-              .fontColor('#9CA3AF')
+              .fontColor(AppColor.textTertiary)
             Text('Copyright © 2026 Hey Team. All rights reserved.')
               .fontSize(10)
-              .fontColor('#D1D5DB')
+              .fontColor(AppColor.textTertiary)
           }
           .width('100%')
           .alignItems(HorizontalAlign.Center)
@@ -170,7 +171,7 @@ struct AboutPage {
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F6F8FA')
+    .backgroundColor(AppColor.bg)
   }
 
   private async openUrl(url: string, title: string): Promise<void> {
@@ -236,11 +237,11 @@ struct AboutItem {
         Text(this.title)
           .fontSize(15)
           .fontWeight(FontWeight.Medium)
-          .fontColor('#1F2937')
+          .fontColor(AppColor.textPrimary)
         if (this.detail) {
           Text(this.detail)
             .fontSize(12)
-            .fontColor('#6B7280')
+            .fontColor(AppColor.textSecondary)
             .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -252,17 +253,17 @@ struct AboutItem {
         LoadingProgress()
           .width(20)
           .height(20)
-          .color('#F97910')
+          .color(AppColor.brand)
       } else {
         Image($r('app.media.ic_chevron_right'))
           .width(18)
           .height(18)
-          .fillColor('#9CA3AF')
+          .fillColor(AppColor.textTertiary)
       }
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .backgroundColor(this.isPressed ? '#F3F4F6' : '#FFFFFF')
+    .backgroundColor(this.isPressed ? AppColor.surfaceAlt : AppColor.surface)
     .onTouch((event: TouchEvent) => {
       if (event.type === TouchType.Down) {
         this.isPressed = true;

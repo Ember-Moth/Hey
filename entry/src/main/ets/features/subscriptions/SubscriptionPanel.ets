@@ -1,6 +1,7 @@
 import { ProxyNode, SubscriptionGroup } from '../../core/Profile';
 import { IconButton } from '../../components/IconButton';
 import { SubscriptionGroupListRow, SubscriptionNodeListRow } from './SubscriptionRows';
+import { AppColor } from '../../theme/Theme';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { promptAction } from '@kit.ArkUI';
 
@@ -122,10 +123,10 @@ export struct SubscriptionManagerPanel {
           Text(this.title)
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#111827')
+            .fontColor(AppColor.textPrimary)
           Text(this.summary)
             .fontSize(12)
-            .fontColor('#6B7280')
+            .fontColor(AppColor.textSecondary)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
@@ -137,7 +138,7 @@ export struct SubscriptionManagerPanel {
         Image($r('app.media.ic_link'))
           .width(20)
           .height(20)
-          .fillColor('#6B7280')
+          .fillColor(AppColor.textSecondary)
           .margin({ left: 12, right: 8 })
 
         TextInput({
@@ -147,8 +148,8 @@ export struct SubscriptionManagerPanel {
           .layoutWeight(1)
           .height(44)
           .fontSize(14)
-          .fontColor('#111827')
-          .placeholderColor('#9CA3AF')
+          .fontColor(AppColor.textPrimary)
+          .placeholderColor(AppColor.textTertiary)
           .backgroundColor('#00000000')
           .onChange((value: string) => {
             this.onUrlChange(value);
@@ -158,7 +159,7 @@ export struct SubscriptionManagerPanel {
           Button() {
             Text('✕')
               .fontSize(14)
-              .fontColor('#9CA3AF')
+              .fontColor(AppColor.textTertiary)
               .fontWeight(FontWeight.Bold)
           }
           .backgroundColor('#00000000')
@@ -173,7 +174,7 @@ export struct SubscriptionManagerPanel {
           Image($r('app.media.ic_article'))
             .width(20)
             .height(20)
-            .fillColor('#6B7280')
+            .fillColor(AppColor.textSecondary)
         }
         .backgroundColor('#00000000')
         .width(36)
@@ -186,7 +187,7 @@ export struct SubscriptionManagerPanel {
           Image($r('app.media.ic_qr_code'))
             .width(20)
             .height(20)
-            .fillColor('#6B7280')
+            .fillColor(AppColor.textSecondary)
         }
         .backgroundColor('#00000000')
         .width(36)
@@ -198,9 +199,9 @@ export struct SubscriptionManagerPanel {
       }
       .width('100%')
       .height(48)
-      .backgroundColor('#F9FAFB')
+      .backgroundColor(AppColor.surfaceAlt)
       .borderRadius(12)
-      .border({ width: 1, color: '#E5E7EB' })
+      .border({ width: 1, color: AppColor.border })
       .alignItems(VerticalAlign.Center)
 
       // 合并为一键获取并更新按钮，具有加载状态
@@ -210,12 +211,12 @@ export struct SubscriptionManagerPanel {
             LoadingProgress()
               .width(20)
               .height(20)
-              .color('#FFFFFF')
+              .color(AppColor.onBrand)
           }
           Text(this.isUpdating ? '正在获取并更新节点...' : '获取并更新节点')
             .fontSize(15)
             .fontWeight(FontWeight.Bold)
-            .fontColor(this.isButtonEnabled() ? '#FFFFFF' : '#9CA3AF')
+            .fontColor(this.isButtonEnabled() ? AppColor.onBrand : AppColor.textTertiary)
         }
       }
       .width('100%')
@@ -225,12 +226,12 @@ export struct SubscriptionManagerPanel {
       .opacity(this.isButtonEnabled() ? 1.0 : 0.65)
       .linearGradient(this.isButtonEnabled() ? {
         angle: 90,
-        colors: [['#FF8F3D', 0.0], ['#F97910', 1.0]]
+        colors: [[AppColor.brandStrong, 0.0], [AppColor.brand, 1.0]]
       } : {
         angle: 90,
-        colors: [['#E5E7EB', 0.0], ['#E5E7EB', 1.0]]
+        colors: [[AppColor.border, 0.0], [AppColor.border, 1.0]]
       })
-      .shadow(this.isButtonEnabled() ? { radius: 8, color: '#33F97910', offsetX: 0, offsetY: 4 } : undefined)
+      .shadow(this.isButtonEnabled() ? { radius: 8, color: AppColor.shadowBrand, offsetX: 0, offsetY: 4 } : undefined)
       .onClick(() => {
         this.onUpdate();
       })
@@ -241,17 +242,17 @@ export struct SubscriptionManagerPanel {
           Image(this.cardType === 'success' ? $r('app.media.ic_check') : $r('app.media.ic_info'))
             .width(18)
             .height(18)
-            .fillColor(this.cardType === 'success' ? '#2E7D32' : this.cardType === 'error' ? '#C62828' : '#1565C0')
+            .fillColor(this.cardType === 'success' ? AppColor.success : this.cardType === 'error' ? AppColor.danger : AppColor.brand)
 
           Text(this.message)
             .fontSize(13)
-            .fontColor(this.cardType === 'success' ? '#2E7D32' : this.cardType === 'error' ? '#C62828' : '#1565C0')
+            .fontColor(this.cardType === 'success' ? AppColor.success : this.cardType === 'error' ? AppColor.danger : AppColor.brand)
             .layoutWeight(1)
 
           Button() {
             Text('✕')
               .fontSize(12)
-              .fontColor(this.cardType === 'success' ? '#2E7D32' : this.cardType === 'error' ? '#C62828' : '#1565C0')
+              .fontColor(this.cardType === 'success' ? AppColor.success : this.cardType === 'error' ? AppColor.danger : AppColor.brand)
               .fontWeight(FontWeight.Bold)
           }
           .backgroundColor('#00000000')
@@ -264,10 +265,10 @@ export struct SubscriptionManagerPanel {
         .width('100%')
         .padding({ left: 12, right: 8, top: 10, bottom: 10 })
         .borderRadius(10)
-        .backgroundColor(this.cardType === 'success' ? '#E8F5E9' : this.cardType === 'error' ? '#FFEBEE' : '#E3F2FD')
+        .backgroundColor(this.cardType === 'success' ? AppColor.successTint : this.cardType === 'error' ? AppColor.dangerTint : AppColor.brandTint)
         .border({
           width: 1,
-          color: this.cardType === 'success' ? '#A5D6A7' : this.cardType === 'error' ? '#EF9A9A' : '#90CAF9'
+          color: this.cardType === 'success' ? AppColor.success : this.cardType === 'error' ? AppColor.danger : AppColor.brand
         })
       }
 
@@ -312,8 +313,8 @@ export struct SubscriptionManagerPanel {
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(AppColor.surface)
     .borderRadius(12)
-    .shadow({ radius: 10, color: '#0A000000', offsetX: 0, offsetY: 2 })
+    .shadow({ radius: 10, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
   }
 }

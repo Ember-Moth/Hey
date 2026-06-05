@@ -10,6 +10,7 @@ import { AssetStore, CustomAssetUrl } from '../storage/AssetStore';
 import { ASSETS_CONTROLLER, GEO_SOURCES } from '../features/assets/AssetsController';
 import { BuiltinGeoCard } from './assets/BuiltinGeoCard';
 import { CustomAssetList } from './assets/CustomAssetList';
+import { AppColor } from '../theme/Theme';
 
 @Entry
 @Component
@@ -59,17 +60,17 @@ struct AssetsPage {
                     Image($r('app.media.ic_refresh'))
                       .width(18)
                       .height(18)
-                      .fillColor('#007DFF')
+                      .fillColor(AppColor.brand)
                     Text(this.t('assets.action.updateAll'))
                       .fontSize(14)
                       .fontWeight(FontWeight.Medium)
-                      .fontColor('#007DFF')
+                      .fontColor(AppColor.brand)
                   }
                   .padding({ left: 16, right: 16 })
                 }
                 .layoutWeight(1)
                 .height(44)
-                .backgroundColor('#EBF5FF')
+                .backgroundColor(AppColor.brandTint)
                 .borderRadius(10)
                 .onClick(() => {
                   this.downloadAllAssets();
@@ -80,17 +81,17 @@ struct AssetsPage {
                     Image($r('app.media.ic_folder'))
                       .width(18)
                       .height(18)
-                      .fillColor('#374151')
+                      .fillColor(AppColor.textSecondary)
                     Text(this.t('assets.action.importLocal'))
                       .fontSize(14)
                       .fontWeight(FontWeight.Medium)
-                      .fontColor('#374151')
+                      .fontColor(AppColor.textSecondary)
                   }
                   .padding({ left: 16, right: 16 })
                 }
                 .layoutWeight(1)
                 .height(44)
-                .backgroundColor('#F3F4F6')
+                .backgroundColor(AppColor.bg)
                 .borderRadius(10)
                 .onClick(() => {
                   this.importLocalFile();
@@ -118,22 +119,22 @@ struct AssetsPage {
                     Image($r('app.media.ic_link'))
                       .width(20)
                       .height(20)
-                      .fillColor('#10B981')
+                      .fillColor(AppColor.success)
                   }
                   .width(36)
                   .height(36)
                   .borderRadius(8)
-                  .backgroundColor('#ECFDF5')
+                  .backgroundColor(AppColor.successTint)
                   .justifyContent(FlexAlign.Center)
 
                   Column() {
                     Text(this.t('assets.userUrls.title'))
                       .fontSize(15)
                       .fontWeight(FontWeight.Bold)
-                      .fontColor('#1F2937')
+                      .fontColor(AppColor.textPrimary)
                     Text(`${this.t('assets.userUrls.detail')} (已配置 ${this.customAssets.length} 个)`)
                       .fontSize(12)
-                      .fontColor('#6B7280')
+                      .fontColor(AppColor.textSecondary)
                       .margin({ top: 2 })
                   }
                   .alignItems(HorizontalAlign.Start)
@@ -143,15 +144,15 @@ struct AssetsPage {
                   Image($r('app.media.ic_chevron_right'))
                     .width(18)
                     .height(18)
-                    .fillColor('#9CA3AF')
+                    .fillColor(AppColor.textTertiary)
                 }
                 .width('100%')
               }
               .width('100%')
               .padding(16)
-              .backgroundColor('#FFFFFF')
+              .backgroundColor(AppColor.surface)
               .borderRadius(16)
-              .shadow({ radius: 8, color: 'rgba(0, 0, 0, 0.03)', offsetX: 0, offsetY: 2 })
+              .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
               .onClick(() => {
                 this.showCustomUrls = true;
               })
@@ -162,11 +163,11 @@ struct AssetsPage {
                   Image($r('app.media.ic_settings'))
                     .width(18)
                     .height(18)
-                    .fillColor('#4B5563')
+                    .fillColor(AppColor.textSecondary)
                   Text('配置备份与恢复')
                     .fontSize(15)
                     .fontWeight(FontWeight.Bold)
-                    .fontColor('#1F2937')
+                    .fontColor(AppColor.textPrimary)
                 }
                 .width('100%')
                 .margin({ bottom: 12 })
@@ -177,18 +178,18 @@ struct AssetsPage {
                     Image($r('app.media.ic_share'))
                       .width(20)
                       .height(20)
-                      .fillColor('#007DFF')
+                      .fillColor(AppColor.brand)
                     Text('备份配置')
                       .fontSize(13)
                       .fontWeight(FontWeight.Bold)
-                      .fontColor('#007DFF')
+                      .fontColor(AppColor.brand)
                     Text('导出配置至剪贴板')
                       .fontSize(10)
-                      .fontColor('#6B7280')
+                      .fontColor(AppColor.textSecondary)
                   }
                   .layoutWeight(1)
                   .height(80)
-                  .backgroundColor('#EBF5FF')
+                  .backgroundColor(AppColor.brandTint)
                   .borderRadius(12)
                   .justifyContent(FlexAlign.Center)
                   .onClick(() => {
@@ -200,18 +201,18 @@ struct AssetsPage {
                     Image($r('app.media.ic_refresh'))
                       .width(20)
                       .height(20)
-                      .fillColor('#4B5563')
+                      .fillColor(AppColor.textSecondary)
                     Text('还原配置')
                       .fontSize(13)
                       .fontWeight(FontWeight.Bold)
-                      .fontColor('#374151')
+                      .fontColor(AppColor.textSecondary)
                     Text('从剪贴板读取覆盖')
                       .fontSize(10)
-                      .fontColor('#6B7280')
+                      .fontColor(AppColor.textSecondary)
                   }
                   .layoutWeight(1)
                   .height(80)
-                  .backgroundColor('#F3F4F6')
+                  .backgroundColor(AppColor.bg)
                   .borderRadius(12)
                   .justifyContent(FlexAlign.Center)
                   .onClick(() => {
@@ -222,9 +223,9 @@ struct AssetsPage {
               }
               .width('100%')
               .padding(16)
-              .backgroundColor('#FFFFFF')
+              .backgroundColor(AppColor.surface)
               .borderRadius(16)
-              .shadow({ radius: 8, color: 'rgba(0, 0, 0, 0.03)', offsetX: 0, offsetY: 2 })
+              .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
             }
             .width('100%')
             .padding({ left: 14, right: 14, top: 14, bottom: 24 })
@@ -234,7 +235,7 @@ struct AssetsPage {
         }
         .height('100%')
         .width('100%')
-        .backgroundColor('#F6F8FA')
+        .backgroundColor(AppColor.bg)
       } else {
         // 自定义 URL 管理视图
         CustomAssetList({
@@ -315,9 +316,9 @@ struct AssetsPage {
       const fileUri = uris[0];
 
       const menu: [promptAction.Button, promptAction.Button, promptAction.Button] = [
-        { text: this.t('assets.importType.geosite'), color: '#007DFF' } as promptAction.Button,
-        { text: this.t('assets.importType.geoip'), color: '#007DFF' } as promptAction.Button,
-        { text: this.t('assets.importType.custom'), color: '#007DFF' } as promptAction.Button
+        { text: this.t('assets.importType.geosite'), color: AppColor.brand } as promptAction.Button,
+        { text: this.t('assets.importType.geoip'), color: AppColor.brand } as promptAction.Button,
+        { text: this.t('assets.importType.custom'), color: AppColor.brand } as promptAction.Button
       ];
 
       promptAction.showActionMenu({
@@ -343,8 +344,8 @@ struct AssetsPage {
   // 切换下载源
   private changeSource(): void {
     const buttons: [promptAction.Button, promptAction.Button] = [
-      { text: GEO_SOURCES[0].name, color: '#007DFF' } as promptAction.Button,
-      { text: GEO_SOURCES[1].name, color: '#007DFF' } as promptAction.Button
+      { text: GEO_SOURCES[0].name, color: AppColor.brand } as promptAction.Button,
+      { text: GEO_SOURCES[1].name, color: AppColor.brand } as promptAction.Button
     ];
 
     promptAction.showActionMenu({

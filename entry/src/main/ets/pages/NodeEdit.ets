@@ -7,6 +7,7 @@ import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
 import { PageHeader } from '../shell/PageHeader';
+import { AppColor } from '../theme/Theme';
 
 // 1. 声明独立的通用子组件，支持标准的双向状态重绘 (@Link)
 
@@ -21,7 +22,7 @@ struct SegmentedControl {
     Column({ space: 6 }) {
       Text(this.label)
         .fontSize(12)
-        .fontColor('#4B5563')
+        .fontColor(AppColor.textSecondary)
         .width('100%')
       Row({ space: 4 }) {
         ForEach(this.options, (option: string) => {
@@ -30,8 +31,8 @@ struct SegmentedControl {
             .height(34)
             .fontSize(11)
             .fontWeight(this.selected === option ? FontWeight.Bold : FontWeight.Normal)
-            .fontColor(this.selected === option ? '#FFFFFF' : '#4B5563')
-            .backgroundColor(this.selected === option ? '#F97910' : '#E5E7EB')
+            .fontColor(this.selected === option ? AppColor.onBrand : AppColor.textSecondary)
+            .backgroundColor(this.selected === option ? AppColor.brand : AppColor.border)
             .textAlign(TextAlign.Center)
             .borderRadius(6)
             .onClick(() => {
@@ -44,7 +45,7 @@ struct SegmentedControl {
       }
       .width('100%')
       .padding(3)
-      .backgroundColor('#E5E7EB')
+      .backgroundColor(AppColor.border)
       .borderRadius(8)
     }
     .width('100%')
@@ -60,7 +61,7 @@ struct ToggleRow {
     Row() {
       Text(this.label)
         .fontSize(13)
-        .fontColor('#4B5563')
+        .fontColor(AppColor.textSecondary)
       Blank()
       Toggle({ type: ToggleType.Switch, isOn: this.isOn })
         .onChange((state: boolean) => {
@@ -83,25 +84,25 @@ struct PickerRow {
     Column({ space: 6 }) {
       Text(this.label)
         .fontSize(12)
-        .fontColor('#4B5563')
+        .fontColor(AppColor.textSecondary)
         .width('100%')
-      
+
       Row() {
         Text(this.selectedValue.toUpperCase())
           .fontSize(13)
-          .fontColor('#111827')
+          .fontColor(AppColor.textPrimary)
           .fontWeight(FontWeight.Medium)
-        
+
         Blank()
-        
+
         Image($r('app.media.ic_chevron_right'))
           .width(14)
           .height(14)
-          .fillColor('#9CA3AF')
+          .fillColor(AppColor.textTertiary)
       }
       .width('100%')
       .height(42)
-      .backgroundColor('#F3F4F6')
+      .backgroundColor(AppColor.bg)
       .borderRadius(8)
       .padding({ left: 12, right: 12 })
       .alignItems(VerticalAlign.Center)
@@ -393,9 +394,9 @@ struct NodeEditPage {
             }
             .width('100%')
             .padding(16)
-            .backgroundColor('#FFFFFF')
+            .backgroundColor(AppColor.surface)
             .borderRadius(16)
-            .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+            .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
 
             // Card 2：认证与加密参数
             Column({ space: 14 }) {
@@ -472,9 +473,9 @@ struct NodeEditPage {
             }
             .width('100%')
             .padding(16)
-            .backgroundColor('#FFFFFF')
+            .backgroundColor(AppColor.surface)
             .borderRadius(16)
-            .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+            .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
 
             // Card 3：WireGuard 专有配置
             if (this.protocol === 'wireguard') {
@@ -499,9 +500,9 @@ struct NodeEditPage {
               }
               .width('100%')
               .padding(16)
-              .backgroundColor('#FFFFFF')
+              .backgroundColor(AppColor.surface)
               .borderRadius(16)
-              .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+              .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
             }
 
             // Card 4：Hysteria2 专有配置
@@ -536,9 +537,9 @@ struct NodeEditPage {
               }
               .width('100%')
               .padding(16)
-              .backgroundColor('#FFFFFF')
+              .backgroundColor(AppColor.surface)
               .borderRadius(16)
-              .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+              .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
             }
 
             // Card 5：流媒体与传输混淆设置 (适用于 VLESS, VMess, Trojan, SS)
@@ -608,18 +609,18 @@ struct NodeEditPage {
               }
               .width('100%')
               .padding(16)
-              .backgroundColor('#FFFFFF')
+              .backgroundColor(AppColor.surface)
               .borderRadius(16)
-              .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+              .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
             }
 
             if (this.lastError.length > 0) {
               Text(this.lastError)
                 .fontSize(12)
-                .fontColor('#B42318')
+                .fontColor(AppColor.danger)
                 .width('100%')
                 .padding(10)
-                .backgroundColor('#FEF3F2')
+                .backgroundColor(AppColor.dangerTint)
                 .borderRadius(6)
             }
           }
@@ -638,13 +639,13 @@ struct NodeEditPage {
                 LoadingProgress()
                   .width(20)
                   .height(20)
-                  .color('#FFFFFF')
+                  .color(AppColor.onBrand)
                   .margin({ right: 8 })
               }
               Text('保存节点配置')
                 .fontSize(16)
                 .fontWeight(FontWeight.Bold)
-                .fontColor(this.isSaveEnabled() ? '#FFFFFF' : '#9CA3AF')
+                .fontColor(this.isSaveEnabled() ? AppColor.onBrand : AppColor.textTertiary)
             }
           }
           .width('100%')
@@ -654,12 +655,12 @@ struct NodeEditPage {
           .opacity(this.isSaveEnabled() ? 1.0 : 0.65)
           .linearGradient(this.isSaveEnabled() ? {
             angle: 90,
-            colors: [['#FF8F3D', 0.0], ['#F97910', 1.0]]
+            colors: [[AppColor.brandStrong, 0.0], [AppColor.brand, 1.0]]
           } : {
             angle: 90,
-            colors: [['#E5E7EB', 0.0], ['#E5E7EB', 1.0]]
+            colors: [[AppColor.border, 0.0], [AppColor.border, 1.0]]
           })
-          .shadow(this.isSaveEnabled() ? { radius: 10, color: '#30F97910', offsetX: 0, offsetY: 4 } : undefined)
+          .shadow(this.isSaveEnabled() ? { radius: 10, color: AppColor.shadowBrand, offsetX: 0, offsetY: 4 } : undefined)
           .scale({ x: this.isPressed ? 0.97 : 1.0, y: this.isPressed ? 0.97 : 1.0 })
           .animation({ duration: 150, curve: Curve.EaseOut })
           .onTouch((event) => {
@@ -675,7 +676,7 @@ struct NodeEditPage {
         }
         .width('100%')
         .padding({ left: 16, right: 16, top: 16, bottom: 24 })
-        .backgroundColor('#C0F3F4F6')
+        .backgroundColor(AppColor.bg)
         .backgroundBlurStyle(BlurStyle.Thin)
       }
       .layoutWeight(1)
@@ -683,7 +684,7 @@ struct NodeEditPage {
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F3F4F6')
+    .backgroundColor(AppColor.bg)
   }
 
   @Builder
@@ -692,13 +693,13 @@ struct NodeEditPage {
       Column()
         .width(4)
         .height(16)
-        .backgroundColor('#F97910')
+        .backgroundColor(AppColor.brand)
         .borderRadius(2)
-      
+
       Text(title)
         .fontSize(15)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#111827')
+        .fontColor(AppColor.textPrimary)
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
@@ -710,12 +711,12 @@ struct NodeEditPage {
     Column({ space: 6 }) {
       Text(label)
         .fontSize(12)
-        .fontColor('#4B5563')
+        .fontColor(AppColor.textSecondary)
         .width('100%')
       TextInput({ text: value, placeholder: placeholder })
         .height(42)
         .fontSize(13)
-        .backgroundColor('#F3F4F6')
+        .backgroundColor(AppColor.bg)
         .borderRadius(8)
         .padding({ left: 12, right: 12 })
         .onChange((next: string) => {

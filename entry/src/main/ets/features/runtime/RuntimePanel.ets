@@ -1,4 +1,5 @@
 import { FlagTile, MetricTile } from '../../components/StatusTiles';
+import { AppColor } from '../../theme/Theme';
 
 @Component
 export struct RuntimeStatusPanel {
@@ -18,7 +19,7 @@ export struct RuntimeStatusPanel {
       Text(this.title)
         .fontSize(18)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#111827')
+        .fontColor(AppColor.textPrimary)
         .width('100%')
 
       Row({ space: 10 }) {
@@ -36,12 +37,12 @@ export struct RuntimeStatusPanel {
 
       Text(this.lastMessage)
         .fontSize(12)
-        .fontColor('#4B5563')
+        .fontColor(AppColor.textSecondary)
         .width('100%')
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(AppColor.surface)
     .borderRadius(8)
   }
 }

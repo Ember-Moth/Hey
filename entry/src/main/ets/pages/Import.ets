@@ -7,6 +7,7 @@ import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { AppRoute } from '../shell/AppRoute';
 import { PageHeader } from '../shell/PageHeader';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
+import { AppColor } from '../theme/Theme';
 
 @Entry
 @Component
@@ -41,10 +42,10 @@ struct ImportPage {
           if (this.lastError.length > 0) {
             Text(this.lastError)
               .fontSize(12)
-              .fontColor('#B42318')
+              .fontColor(AppColor.danger)
               .width('100%')
               .padding(10)
-              .backgroundColor('#FEF3F2')
+              .backgroundColor(AppColor.dangerTint)
               .borderRadius(6)
           }
         }
@@ -56,7 +57,7 @@ struct ImportPage {
     }
     .height('100%')
     .width('100%')
-    .backgroundColor('#F3F4F6')
+    .backgroundColor(AppColor.bg)
   }
 
   // 1. 扫码与链接导入区
@@ -67,7 +68,7 @@ struct ImportPage {
       
       Text('粘贴分享链接（如 vless://, vmess://, ss://, trojan:// 等）或点击右侧扫码解析。')
         .fontSize(12)
-        .fontColor('#9CA3AF')
+        .fontColor(AppColor.textTertiary)
         .width('100%')
         .lineHeight(16)
 
@@ -75,7 +76,7 @@ struct ImportPage {
         Image($r('app.media.ic_link'))
           .width(20)
           .height(20)
-          .fillColor('#6B7280')
+          .fillColor(AppColor.textSecondary)
           .margin({ left: 12, right: 8 })
 
         TextInput({
@@ -85,8 +86,8 @@ struct ImportPage {
           .layoutWeight(1)
           .height(46)
           .fontSize(14)
-          .fontColor('#111827')
-          .placeholderColor('#9CA3AF')
+          .fontColor(AppColor.textPrimary)
+          .placeholderColor(AppColor.textTertiary)
           .backgroundColor('#00000000')
           .onChange((value: string) => {
             this.importBuffer = value;
@@ -96,10 +97,10 @@ struct ImportPage {
           Button() {
             Text('✕')
               .fontSize(12)
-              .fontColor('#4B5563')
+              .fontColor(AppColor.textSecondary)
               .fontWeight(FontWeight.Bold)
           }
-          .backgroundColor('#E5E7EB')
+          .backgroundColor(AppColor.border)
           .width(28)
           .height(28)
           .borderRadius(14)
@@ -111,7 +112,7 @@ struct ImportPage {
       }
       .width('100%')
       .height(48)
-      .backgroundColor('#F3F4F6')
+      .backgroundColor(AppColor.bg)
       .borderRadius(10)
       .alignItems(VerticalAlign.Center)
 
@@ -122,13 +123,13 @@ struct ImportPage {
               LoadingProgress()
                 .width(18)
                 .height(18)
-                .color('#FFFFFF')
+                .color(AppColor.onBrand)
                 .margin({ right: 6 })
             }
             Text('解析并导入')
               .fontSize(14)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#FFFFFF')
+              .fontColor(AppColor.onBrand)
           }
         }
         .height(40)
@@ -137,7 +138,7 @@ struct ImportPage {
         .opacity(this.importBuffer.trim().length > 0 ? 1.0 : 0.6)
         .linearGradient({
           angle: 90,
-          colors: [['#FF8F3D', 0.0], ['#F97910', 1.0]]
+          colors: [[AppColor.brandStrong, 0.0], [AppColor.brand, 1.0]]
         })
         .borderRadius(8)
         .onClick(() => {
@@ -149,18 +150,18 @@ struct ImportPage {
             Image($r('app.media.ic_qr_code'))
               .width(16)
               .height(16)
-              .fillColor('#374151')
+              .fillColor(AppColor.textSecondary)
             Text('扫描二维码')
               .fontSize(14)
               .fontWeight(FontWeight.Medium)
-              .fontColor('#374151')
+              .fontColor(AppColor.textSecondary)
           }
         }
         .height(40)
         .padding({ left: 16, right: 16 })
-        .backgroundColor('#FFFFFF')
+        .backgroundColor(AppColor.surface)
         .borderWidth(1)
-        .borderColor('#D1D5DB')
+        .borderColor(AppColor.border)
         .borderRadius(8)
         .onClick(() => {
           router.pushUrl({ url: AppRoute.SCANNER });
@@ -170,9 +171,9 @@ struct ImportPage {
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(AppColor.surface)
     .borderRadius(16)
-    .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+    .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
   }
 
   // 2. 手动协议配置列表项
@@ -210,9 +211,9 @@ struct ImportPage {
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(AppColor.surface)
     .borderRadius(16)
-    .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+    .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
   }
 
   @Builder
@@ -222,10 +223,10 @@ struct ImportPage {
         Text(protocol === 'hysteria2' ? 'HY2' : protocol.toUpperCase())
           .fontSize(14)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#111827')
+          .fontColor(AppColor.textPrimary)
         Text(`${protocol === 'ss' ? 'Shadowsocks' : (protocol === 'wireguard' ? 'WireGuard' : (protocol === 'hysteria2' ? 'Hysteria 2' : protocol.toUpperCase()))} 协议`)
           .fontSize(10)
-          .fontColor('#9CA3AF')
+          .fontColor(AppColor.textTertiary)
           .margin({ top: 1 })
       }
       .alignItems(HorizontalAlign.Start)
@@ -235,16 +236,16 @@ struct ImportPage {
       Image($r('app.media.ic_chevron_right'))
         .width(14)
         .height(14)
-        .fillColor('#9CA3AF')
+        .fillColor(AppColor.textTertiary)
         .margin({ top: 2 })
     }
     .layoutWeight(1)
     .padding({ left: 12, right: 10, top: 10, bottom: 10 })
     .alignItems(VerticalAlign.Top)
-    .backgroundColor('#F9FAFB')
+    .backgroundColor(AppColor.surfaceAlt)
     .borderRadius(10)
     .borderWidth(1)
-    .borderColor('#F3F4F6')
+    .borderColor(AppColor.border)
     .onClick(() => {
       router.pushUrl({
         url: AppRoute.NODE_EDIT,
@@ -261,28 +262,28 @@ struct ImportPage {
         Text('导入 JSON 配置')
           .fontSize(15)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#111827')
-        
+          .fontColor(AppColor.textPrimary)
+
         Text('支持直接粘贴标准的 Xray outbound JSON 配置大文本。')
           .fontSize(11)
-          .fontColor('#9CA3AF')
+          .fontColor(AppColor.textTertiary)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
-      
+
       Image($r('app.media.ic_chevron_right'))
         .width(16)
         .height(16)
-        .fillColor('#9CA3AF')
+        .fillColor(AppColor.textTertiary)
         .margin({ left: 8 })
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(AppColor.surface)
     .borderRadius(16)
-    .shadow({ radius: 8, color: '#0A000000', offsetX: 0, offsetY: 2 })
+    .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
     .scale({ x: this.isPressed ? 0.98 : 1.0, y: this.isPressed ? 0.98 : 1.0 })
     .animation({ duration: 150, curve: Curve.EaseOut })
     .onTouch((event) => {
@@ -303,13 +304,13 @@ struct ImportPage {
       Column()
         .width(4)
         .height(16)
-        .backgroundColor('#F97910')
+        .backgroundColor(AppColor.brand)
         .borderRadius(2)
-      
+
       Text(title)
         .fontSize(15)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#111827')
+        .fontColor(AppColor.textPrimary)
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)

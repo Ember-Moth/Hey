@@ -4,6 +4,7 @@ import fs from '@ohos.file.fs';
 import { AppLanguage } from '../../core/Profile';
 import { translate } from '../../core/I18n';
 import { ASSETS_CONTROLLER } from '../../features/assets/AssetsController';
+import { AppColor } from '../../theme/Theme';
 
 @Component
 export struct BuiltinGeoCard {
@@ -30,11 +31,11 @@ export struct BuiltinGeoCard {
         Image($r('app.media.ic_folder'))
           .width(18)
           .height(18)
-          .fillColor('#007DFF')
+          .fillColor(AppColor.brand)
         Text('内置 Geo 规则资源库')
           .fontSize(15)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#1F2937')
+          .fontColor(AppColor.textPrimary)
       }
       .width('100%')
       .margin({ bottom: 12 })
@@ -45,10 +46,10 @@ export struct BuiltinGeoCard {
           Text(this.t('assets.source.title'))
             .fontSize(14)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#374151')
+            .fontColor(AppColor.textSecondary)
           Text(this.t('assets.source.detail'))
             .fontSize(11)
-            .fontColor('#9CA3AF')
+            .fontColor(AppColor.textTertiary)
             .margin({ top: 2 })
         }
         .alignItems(HorizontalAlign.Start)
@@ -58,14 +59,14 @@ export struct BuiltinGeoCard {
         Row({ space: 4 }) {
           Text(this.currentSourceName)
             .fontSize(13)
-            .fontColor('#007DFF')
+            .fontColor(AppColor.brand)
             .fontWeight(FontWeight.Medium)
           Image($r('app.media.ic_arrow_downward'))
             .width(14)
             .height(14)
-            .fillColor('#007DFF')
+            .fillColor(AppColor.brand)
         }
-        .backgroundColor('#F3F4F6')
+        .backgroundColor(AppColor.bg)
         .borderRadius(8)
         .padding({ left: 8, right: 8, top: 6, bottom: 6 })
         .onClick(() => {
@@ -76,7 +77,7 @@ export struct BuiltinGeoCard {
       .padding({ top: 8, bottom: 12 })
 
       Divider()
-        .color('#F3F4F6')
+        .color(AppColor.bg)
         .strokeWidth(1)
         .margin({ bottom: 12 })
 
@@ -84,7 +85,7 @@ export struct BuiltinGeoCard {
       this.GeoItemRow('geosite.dat', this.geositeStatus)
 
       Divider()
-        .color('#F3F4F6')
+        .color(AppColor.bg)
         .strokeWidth(1)
         .margin({ top: 12, bottom: 12 })
 
@@ -93,9 +94,9 @@ export struct BuiltinGeoCard {
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(AppColor.surface)
     .borderRadius(16)
-    .shadow({ radius: 8, color: 'rgba(0, 0, 0, 0.03)', offsetX: 0, offsetY: 2 })
+    .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
   }
 
   @Builder
@@ -107,22 +108,22 @@ export struct BuiltinGeoCard {
           Image($r('app.media.ic_article'))
             .width(18)
             .height(18)
-            .fillColor('#007DFF')
+            .fillColor(AppColor.brand)
         }
         .width(36)
         .height(36)
         .borderRadius(8)
-        .backgroundColor('#EBF5FF')
+        .backgroundColor(AppColor.brandTint)
         .justifyContent(FlexAlign.Center)
 
         Column() {
           Text(fileName)
             .fontSize(14)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#111827')
+            .fontColor(AppColor.textPrimary)
           Text(status)
             .fontSize(11)
-            .fontColor('#6B7280')
+            .fontColor(AppColor.textSecondary)
             .margin({ top: 2 })
         }
         .alignItems(HorizontalAlign.Start)
@@ -136,14 +137,14 @@ export struct BuiltinGeoCard {
           LoadingProgress()
             .width(20)
             .height(20)
-            .color('#007DFF')
+            .color(AppColor.brand)
         } else {
           // 快捷下载更新
           Button() {
             Image($r('app.media.ic_cloud_download'))
               .width(18)
               .height(18)
-              .fillColor('#007DFF')
+              .fillColor(AppColor.brand)
           }
           .width(32)
           .height(32)
@@ -157,7 +158,7 @@ export struct BuiltinGeoCard {
             Image($r('app.media.ic_more_vert'))
               .width(18)
               .height(18)
-              .fillColor('#6B7280')
+              .fillColor(AppColor.textSecondary)
           }
           .width(32)
           .height(32)
@@ -176,7 +177,7 @@ export struct BuiltinGeoCard {
     const exists = this.checkFileExists(context, fileName);
 
     const menu: [promptAction.Button, promptAction.Button] = [
-      { text: this.t('action.update'), color: '#007DFF' } as promptAction.Button,
+      { text: this.t('action.update'), color: AppColor.brand } as promptAction.Button,
       { text: this.t('action.del'), color: exists ? '#EF4444' : '#9CA3AF' } as promptAction.Button
     ];
 
