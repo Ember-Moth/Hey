@@ -10,6 +10,9 @@ export struct PageHeader {
   statusLabel: string = '';
   statusColor: ResourceColor = AppColor.textSecondary;
   statusBackground: ResourceColor = AppColor.surfaceAlt;
+  onBack: () => void = () => {
+    router.back();
+  };
   @BuilderParam rightActions?: () => void;
 
   build() {
@@ -48,7 +51,7 @@ export struct PageHeader {
               iconSize: 26,
               iconColor: AppColor.textPrimary,
               onAction: () => {
-                router.back();
+                this.onBack();
               }
             })
           }
