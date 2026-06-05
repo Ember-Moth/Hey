@@ -102,7 +102,7 @@ export struct BuiltinGeoCard {
       .borderRadius(20)
       .backgroundColor(AppColor.brandTint)
       .justifyContent(FlexAlign.Center)
-      .alignItems(HorizontalAlign.Center)
+      .alignItems(VerticalAlign.Center)
 
       Column({ space: 3 }) {
         Text(fileName)

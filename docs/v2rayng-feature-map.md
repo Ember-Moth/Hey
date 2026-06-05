@@ -1,11 +1,13 @@
 # v2rayNG Feature Parity Map
 
-This project targets feature parity with the local Android reference at
-`/Users/liumin/Documents/v2rayNG/V2rayNG` without copying Android/Kotlin source,
+This project targets feature parity with the Android reference v2rayNG
+(<https://github.com/2dust/v2rayNG>) without copying Android/Kotlin source,
 XML layouts, drawable assets, launcher artwork, strings, or package branding.
 
 Status below is verified against the actual code as of 2026-06-03. For the
-phased delivery plan, see [`roadmap.md`](roadmap.md).
+phased delivery plan, see [`development-plan.md`](development-plan.md). For an
+in-depth analysis of v2rayNG's features and design, see
+[`v2rayng-analysis/`](v2rayng-analysis/README.md).
 
 ## Page Map
 

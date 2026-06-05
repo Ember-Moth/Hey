@@ -177,7 +177,7 @@ struct AssetsPage {
       .borderRadius(20)
       .backgroundColor(iconBg)
       .justifyContent(FlexAlign.Center)
-      .alignItems(HorizontalAlign.Center)
+      .alignItems(VerticalAlign.Center)
 
       Column({ space: 3 }) {
         Text(title)

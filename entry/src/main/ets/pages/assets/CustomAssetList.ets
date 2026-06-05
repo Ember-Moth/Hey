@@ -126,7 +126,7 @@ export struct CustomAssetList {
       .borderRadius(20)
       .backgroundColor(AppColor.successTint)
       .justifyContent(FlexAlign.Center)
-      .alignItems(HorizontalAlign.Center)
+      .alignItems(VerticalAlign.Center)
 
       Column({ space: 3 }) {
         Text(item.name)

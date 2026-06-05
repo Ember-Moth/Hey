@@ -25,6 +25,12 @@ interface XraySniffingConfig {
   destOverride: Array<string>;
 }
 
+interface XrayFragmentConfig {
+  packets: string;
+  length: string;
+  interval: string;
+}
+
 interface XrayInboundConfig {
   tag: string;
   listen?: string;
@@ -205,11 +211,12 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
   if (settings !== undefined && settings.fragmentEnabled) {
     const streamSettings = (outbound.streamSettings ?? {}) as Record<string, Object | undefined>;
     const sockopt = (streamSettings['sockopt'] ?? {}) as Record<string, Object | undefined>;
-    sockopt['fragment'] = {
+    const fragment: XrayFragmentConfig = {
       packets: settings.fragmentPackets,
       length: settings.fragmentLength,
       interval: settings.fragmentInterval
     };
+    sockopt['fragment'] = fragment;
     streamSettings['sockopt'] = sockopt;
     outbound.streamSettings = streamSettings;
   }
